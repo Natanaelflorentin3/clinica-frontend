@@ -1,14 +1,21 @@
-import type { Paciente } from '../types/paciente'
+import type { ChangeEvent } from 'react'
+import type { EstadoPaciente, Paciente } from '../types/paciente'
 import BadgeEstado from './BadgeEstado'
 
 interface PacienteCardProps {
   paciente: Paciente
+  onCambiarEstado: (id: string, estado: EstadoPaciente) => void
+  onEliminar: (id: string) => void
 }
 
 const obtenerIniciales = (nombre: string, apellido: string): string =>
   `${nombre[0] ?? ''}${apellido[0] ?? ''}`.toUpperCase()
 
-export default function PacienteCard({ paciente }: PacienteCardProps) {
+export default function PacienteCard({ paciente, onCambiarEstado, onEliminar }: PacienteCardProps) {
+  const handleEstadoChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    onCambiarEstado(paciente.id, e.target.value as EstadoPaciente)
+  }
+
   return (
     <article className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
       {/* Encabezado */}
@@ -18,7 +25,7 @@ export default function PacienteCard({ paciente }: PacienteCardProps) {
             {obtenerIniciales(paciente.nombre, paciente.apellido)}
           </div>
           <div className="min-w-0">
-            <h3 className="truncate font-semibold text-slate-800">
+            <h3 className="font-semibold leading-tight text-slate-800">
               {paciente.nombre} {paciente.apellido}
             </h3>
             <p className="text-xs font-semibold tracking-wider text-slate-400">{paciente.id}</p>
@@ -49,11 +56,24 @@ export default function PacienteCard({ paciente }: PacienteCardProps) {
         </p>
       </div>
 
-            {/* Acciones (visuales por ahora) */}
-      <div className="mt-auto flex items-center gap-2 border-t border-slate-100 pt-4 text-sm">
-        <button className="font-semibold text-emerald-700 hover:text-emerald-600">Historial →</button>
-        <span className="text-slate-300">•</span>
-        <button className="text-slate-600 hover:text-slate-800">Agendar Cita</button>
+      {/* Acciones */}
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
+        <select
+          value={paciente.estado}
+          onChange={handleEstadoChange}
+          className="rounded-lg bg-slate-100 px-2 py-1 text-sm text-slate-700 focus:outline-none"
+        >
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+          <option value="en_espera">En espera</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => onEliminar(paciente.id)}
+          className="rounded-lg px-3 py-1 text-sm font-medium text-rose-600 hover:bg-rose-50"
+        >
+          Eliminar
+        </button>
       </div>
     </article>
   )
