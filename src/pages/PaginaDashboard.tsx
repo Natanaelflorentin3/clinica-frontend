@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Metrica } from '../types'
 import MetricCard from '../components/MetricCard'
 import StatusBadge from '../components/StatusBadge'
@@ -12,6 +13,9 @@ export default function PaginaDashboard() {
 
   // Estado del modo mantenimiento
   const [mantenimiento, setMantenimiento] = useState<boolean>(false)
+
+  // Navegación
+  const navigate = useNavigate()
 
   // Handlers
   const incrementarPacientes = () => setPacientes(prev => prev + 1)
@@ -42,8 +46,14 @@ export default function PaginaDashboard() {
             <h1 className="text-2xl font-bold text-slate-800">Clínica Salud Integral</h1>
             <p className="text-slate-500">Panel general</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <StatusBadge activo={!mantenimiento} />
+            <button
+              onClick={() => navigate('/pacientes')}
+              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+            >
+              Ver Pacientes
+            </button>
             <button
               onClick={toggleMantenimiento}
               className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"

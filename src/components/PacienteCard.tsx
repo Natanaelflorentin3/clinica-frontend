@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react'
+import { Link } from 'react-router-dom'
 import type { EstadoPaciente, Paciente } from '../types/paciente'
 import BadgeEstado from './BadgeEstado'
 
@@ -67,13 +68,22 @@ export default function PacienteCard({ paciente, onCambiarEstado, onEliminar }: 
           <option value="inactivo">Inactivo</option>
           <option value="en_espera">En espera</option>
         </select>
-        <button
-          type="button"
-          onClick={() => onEliminar(paciente.id)}
-          className="rounded-lg px-3 py-1 text-sm font-medium text-rose-600 hover:bg-rose-50"
-        >
-          Eliminar
-        </button>
+
+        <div className="flex items-center gap-1">
+          <Link
+            to={`/pacientes/${paciente.id}`}
+            className="rounded-lg px-3 py-1 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+          >
+            Ver detalle →
+          </Link>
+          <button
+            type="button"
+            onClick={() => onEliminar(paciente.id)}
+            className="rounded-lg px-3 py-1 text-sm font-medium text-rose-600 hover:bg-rose-50"
+          >
+            Eliminar
+          </button>
+        </div>
       </div>
     </article>
   )
