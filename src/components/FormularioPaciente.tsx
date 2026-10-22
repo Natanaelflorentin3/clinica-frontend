@@ -4,13 +4,8 @@ import toast from 'react-hot-toast'
 import { pacienteSchema } from '../schemas/pacienteSchema'
 import type { PacienteFormData } from '../schemas/pacienteSchema'
 import { fechaHoy } from '../schemas/citaSchema'
-import * as pacientesService from '../services/pacientes'
+import { usePacientesStore } from '../stores/pacientesStore'
 import { extraerMensajeError } from '../lib/errorHandler'
-import type { PacienteApi } from '../types/api'
-
-interface FormularioPacienteProps {
-  onCreado: (paciente: PacienteApi) => void
-}
 
 // Borde rojo si el campo tiene error
 const clasesCampo = (hayError: boolean): string =>
@@ -20,7 +15,9 @@ const clasesCampo = (hayError: boolean): string =>
       : 'border-slate-200 bg-slate-50 focus:bg-white focus:ring-emerald-200'
   }`
 
-export default function FormularioPaciente({ onCreado }: FormularioPacienteProps) {
+export default function FormularioPaciente() {
+  const crear = usePacientesStore(s => s.crear)
+
   const {
     register,
     handleSubmit,
@@ -30,8 +27,7 @@ export default function FormularioPaciente({ onCreado }: FormularioPacienteProps
 
   const onSubmit = async (data: PacienteFormData) => {
     try {
-      const res = await pacientesService.create(data)
-      onCreado(res.data)
+      await crear(data)
       toast.success('Paciente registrado')
       reset()
     } catch (err) {

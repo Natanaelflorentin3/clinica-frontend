@@ -1,8 +1,10 @@
-import { useEffect, useOptimistic, useState, useTransition } from 'react'
+import { useEffect, useOptimistic, useTransition } from 'react'
+import type { ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import * as citasService from '../services/citas'
 import type { EstadoFinalCita } from '../services/citas'
+import { useCitasStore } from '../stores/citasStore'
+import { useFiltrosStore } from '../stores/filtrosStore'
 import { extraerMensajeError } from '../lib/errorHandler'
 import type { CitaConDetalle, EstadoCitaApi } from '../types/api'
 
@@ -12,6 +14,9 @@ const estiloEstado: Record<EstadoCitaApi, { texto: string; clases: string }> = {
   CANCELADA: { texto: 'Cancelada', clases: 'bg-slate-200 text-slate-600' },
 }
 
+const ESPECIALIDADES = ['CARDIOLOGIA', 'PEDIATRIA', 'TRAUMATOLOGIA', 'DERMATOLOGIA', 'CLINICA_GENERAL']
+const ESTADOS: (EstadoCitaApi | 'Todos')[] = ['Todos', 'PROGRAMADA', 'COMPLETADA', 'CANCELADA']
+
 interface CambioEstado {
   id: number
   estado: EstadoFinalCita
@@ -20,52 +25,58 @@ interface CambioEstado {
 const formatearFecha = (fechaIso: string): string =>
   new Date(fechaIso).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
 
+const selectClases =
+  'rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-200'
+
 export default function PaginaCitas() {
-  // Estado REAL (lo que confirmó el backend)
-  const [citas, setCitas] = useState<CitaConDetalle[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState(false)
+  // Datos de la API desde el store
+  const citas = useCitasStore(s => s.citas)
+  const cargando = useCitasStore(s => s.cargando)
+  const error = useCitasStore(s => s.error)
+  const cargar = useCitasStore(s => s.cargar)
+  const actualizarEstado = useCitasStore(s => s.actualizarEstado)
+
+  // Filtros desde su store
+  const estadoFiltro = useFiltrosStore(s => s.estadoCitaFiltro)
+  const especialidadFiltro = useFiltrosStore(s => s.especialidadFiltro)
+  const setEstadoCita = useFiltrosStore(s => s.setEstadoCita)
+  const setEspecialidad = useFiltrosStore(s => s.setEspecialidad)
+
   const [, startTransition] = useTransition()
 
-  // Estado OPTIMISTA: lo que se muestra mientras la petición está en curso.
-  // Si la petición falla y no tocamos `citas`, vuelve solo al valor real (se revierte).
+  // Estado OPTIMISTA sobre las citas del store.
+  // Si la petición falla, el store no cambia y la UI vuelve sola al valor real (se revierte).
   const [citasOptimistas, aplicarCambioOptimista] = useOptimistic(
     citas,
     (actuales: CitaConDetalle[], cambio: CambioEstado) =>
       actuales.map(c => (c.id === cambio.id ? { ...c, estado: cambio.estado } : c))
   )
 
-  const cargarCitas = () => {
-    setCargando(true)
-    setError(false)
-    citasService.getAll()
-      .then((res) => setCitas(res.data))
-      .catch(() => setError(true))
-      .finally(() => setCargando(false))
-  }
-
-  useEffect(cargarCitas, [])
+  useEffect(() => {
+    cargar()
+  }, [cargar])
 
   const cambiarEstado = (id: number, estado: EstadoFinalCita) => {
     startTransition(async () => {
       // 1. La UI cambia al instante
       aplicarCambioOptimista({ id, estado })
-
       try {
-        // 2. Petición real al backend
-        const res = await citasService.updateEstado(id, estado)
-
-        // 3. Éxito: actualizamos el estado real con lo que confirmó el servidor
-        startTransition(() => {
-          setCitas(prev => prev.map(c => (c.id === id ? { ...c, estado: res.data.estado } : c)))
-        })
-        toast.success(`Cita ${estiloEstado[res.data.estado].texto.toLowerCase()}`)
+        // 2. El store hace la petición y, si sale bien, actualiza el estado real
+        await actualizarEstado(id, estado)
+        toast.success(`Cita ${estiloEstado[estado].texto.toLowerCase()}`)
       } catch (err) {
-        // 4. Error: no tocamos `citas`, así que la UI vuelve al estado anterior
+        // 3. Error: el store no cambió, así que la UI vuelve al estado anterior
         toast.error(`Cambio revertido: ${extraerMensajeError(err)}`)
       }
     })
   }
+
+  // Filtros combinados (se calculan en cada render)
+  const citasFiltradas = citasOptimistas.filter(
+    c =>
+      (estadoFiltro === 'Todos' || c.estado === estadoFiltro) &&
+      (especialidadFiltro === 'Todas' || c.medico.especialidadMedica === especialidadFiltro)
+  )
 
   // ---- Cargando ----
   if (cargando) {
@@ -83,9 +94,10 @@ export default function PaginaCitas() {
       <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-5xl">⚠️</p>
         <p className="font-semibold text-slate-800">No se pudieron cargar las citas</p>
+        <p className="text-sm text-slate-500">{error}</p>
         <button
           type="button"
-          onClick={cargarCitas}
+          onClick={() => cargar()}
           className="mt-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
         >
           Reintentar
@@ -101,7 +113,7 @@ export default function PaginaCitas() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">Citas</h1>
           <p className="mt-1 text-slate-500">
-            {citasOptimistas.length} cita{citasOptimistas.length === 1 ? '' : 's'} en total
+            {citasFiltradas.length} de {citasOptimistas.length} cita{citasOptimistas.length === 1 ? '' : 's'}
           </p>
         </div>
         <Link
@@ -112,11 +124,38 @@ export default function PaginaCitas() {
         </Link>
       </div>
 
-      {citasOptimistas.length === 0 ? (
-        <p className="rounded-xl bg-white p-8 text-center text-slate-500 shadow-sm">No hay citas registradas.</p>
+      {/* Filtros (useFiltrosStore) */}
+      <div className="mb-4 flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm md:flex-row">
+        <select
+          value={estadoFiltro}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setEstadoCita(e.target.value as EstadoCitaApi | 'Todos')}
+          className={selectClases}
+        >
+          {ESTADOS.map(est => (
+            <option key={est} value={est}>
+              {est === 'Todos' ? 'Todos los estados' : estiloEstado[est].texto}
+            </option>
+          ))}
+        </select>
+        <select
+          value={especialidadFiltro}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setEspecialidad(e.target.value)}
+          className={selectClases}
+        >
+          <option value="Todas">Todas las especialidades</option>
+          {ESPECIALIDADES.map(esp => (
+            <option key={esp} value={esp}>
+              {esp.replace('_', ' ')}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {citasFiltradas.length === 0 ? (
+        <p className="rounded-xl bg-white p-8 text-center text-slate-500 shadow-sm">No hay citas para mostrar.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {citasOptimistas.map(cita => (
+          {citasFiltradas.map(cita => (
             <article
               key={cita.id}
               className="flex flex-col gap-3 rounded-xl bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between"
