@@ -1,94 +1,86 @@
-import { useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
-import type { EstadoPaciente, Paciente } from '../types/paciente'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import toast from 'react-hot-toast'
+import { pacienteSchema } from '../schemas/pacienteSchema'
+import type { PacienteFormData } from '../schemas/pacienteSchema'
+import { fechaHoy } from '../schemas/citaSchema'
+import * as pacientesService from '../services/pacientes'
+import { extraerMensajeError } from '../lib/errorHandler'
+import type { PacienteApi } from '../types/api'
 
 interface FormularioPacienteProps {
-  onAgregar: (paciente: Paciente) => void
+  onCreado: (paciente: PacienteApi) => void
 }
 
-export default function FormularioPaciente({ onAgregar }: FormularioPacienteProps) {
-  const [nombre, setNombre] = useState('')
-  const [apellido, setApellido] = useState('')
-  const [email, setEmail] = useState('')
-  const [estado, setEstado] = useState<EstadoPaciente>('activo')
-  const [error, setError] = useState('')
+// Borde rojo si el campo tiene error
+const clasesCampo = (hayError: boolean): string =>
+  `w-full rounded-lg border px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 ${
+    hayError
+      ? 'border-rose-500 bg-rose-50 focus:ring-rose-200'
+      : 'border-slate-200 bg-slate-50 focus:bg-white focus:ring-emerald-200'
+  }`
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+export default function FormularioPaciente({ onCreado }: FormularioPacienteProps) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<PacienteFormData>({ resolver: zodResolver(pacienteSchema) })
 
-    if (!nombre.trim() || !email.trim()) {
-      setError('Nombre y email son obligatorios')
-      return
+  const onSubmit = async (data: PacienteFormData) => {
+    try {
+      const res = await pacientesService.create(data)
+      onCreado(res.data)
+      toast.success('Paciente registrado')
+      reset()
+    } catch (err) {
+      toast.error(extraerMensajeError(err))
     }
-
-    const nuevo: Paciente = {
-      id: `PAC-${Date.now().toString().slice(-4)}`,
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
-      email: email.trim(),
-      telefono: 'Sin teléfono',
-      especialidadAsignada: 'Sin asignar',
-      ultimaCita: 'Sin citas',
-      estado,
-    }
-
-    onAgregar(nuevo)
-
-    // Limpiar el formulario
-    setNombre('')
-    setApellido('')
-    setEmail('')
-    setEstado('activo')
-    setError('')
   }
 
-  const inputClases =
-    'w-full rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200'
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
       <h2 className="font-semibold text-slate-800">Registrar nuevo paciente</h2>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <input
-          type="text"
-          placeholder="Nombre *"
-          value={nombre}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setNombre(e.target.value)}
-          className={inputClases}
-        />
-        <input
-          type="text"
-          placeholder="Apellido"
-          value={apellido}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setApellido(e.target.value)}
-          className={inputClases}
-        />
-        <input
-          type="email"
-          placeholder="Email *"
-          value={email}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-          className={inputClases}
-        />
-        <select
-          value={estado}
-          onChange={(e: ChangeEvent<HTMLSelectElement>) => setEstado(e.target.value as EstadoPaciente)}
-          className={inputClases}
-        >
-          <option value="activo">Activo</option>
-          <option value="inactivo">Inactivo</option>
-          <option value="en_espera">En espera</option>
-        </select>
+        <div>
+          <input type="text" placeholder="Nombre *" {...register('nombre')} className={clasesCampo(!!errors.nombre)} />
+          {errors.nombre && <p className="mt-1 text-sm text-rose-600">{errors.nombre.message}</p>}
+        </div>
+        <div>
+          <input type="text" placeholder="Apellido *" {...register('apellido')} className={clasesCampo(!!errors.apellido)} />
+          {errors.apellido && <p className="mt-1 text-sm text-rose-600">{errors.apellido.message}</p>}
+        </div>
+        <div>
+          <input type="email" placeholder="Email *" {...register('email')} className={clasesCampo(!!errors.email)} />
+          {errors.email && <p className="mt-1 text-sm text-rose-600">{errors.email.message}</p>}
+        </div>
+        <div>
+          <input type="tel" placeholder="Teléfono *" {...register('telefono')} className={clasesCampo(!!errors.telefono)} />
+          {errors.telefono && <p className="mt-1 text-sm text-rose-600">{errors.telefono.message}</p>}
+        </div>
+        <div>
+          <label htmlFor="fechaNacimiento" className="mb-1 block text-xs font-medium text-slate-500">
+            Fecha de nacimiento *
+          </label>
+          <input
+            id="fechaNacimiento"
+            type="date"
+            max={fechaHoy()}
+            {...register('fechaNacimiento')}
+            className={clasesCampo(!!errors.fechaNacimiento)}
+          />
+          {errors.fechaNacimiento && <p className="mt-1 text-sm text-rose-600">{errors.fechaNacimiento.message}</p>}
+        </div>
       </div>
-
-      {error && <p className="text-sm text-rose-600">{error}</p>}
 
       <button
         type="submit"
-        className="w-fit rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+        disabled={isSubmitting}
+        className="w-fit rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        + Agregar paciente
+        {isSubmitting ? 'Guardando...' : '+ Agregar paciente'}
       </button>
     </form>
   )

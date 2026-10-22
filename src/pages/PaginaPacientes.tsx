@@ -10,12 +10,16 @@
 
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import toast from 'react-hot-toast'
 import { api } from '../lib/axios'
+import { extraerMensajeError } from '../lib/errorHandler'
+import * as pacientesService from '../services/pacientes'
 import type { EstadoPaciente, FiltroEstado, Paciente } from '../types/paciente'
 import type { PacienteApi } from '../types/api'
 import PacienteCard from '../components/PacienteCard'
 import FiltrosPacientes from '../components/FiltrosPacientes'
 import FormularioPaciente from '../components/FormularioPaciente'
+import ModalConfirmacion from '../components/ModalConfirmacion'
 
 // Convierte el paciente que manda el backend al formato que usan nuestros componentes.
 // El backend todavía no tiene estado, especialidad ni última cita: usamos valores por defecto.
@@ -40,6 +44,10 @@ export default function PaginaPacientes() {
   const [busqueda, setBusqueda] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState<FiltroEstado>('Todos')
 
+  // Estado del modal de eliminación
+  const [pacienteAEliminar, setPacienteAEliminar] = useState<Paciente | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+
   const cargarPacientes = () => {
     setCargando(true)
     setError(false)
@@ -60,18 +68,36 @@ export default function PaginaPacientes() {
     setEstadoFiltro('Todos')
   }
 
-  // CRUD local (inmutable) — se conecta al backend más adelante
-  const agregarPaciente = (nuevo: Paciente) => {
-    setPacientes(prev => [...prev, nuevo])
+  // CREAR: el formulario ya hizo el POST; acá solo lo sumamos al estado local
+  const handlePacienteCreado = (nuevo: PacienteApi) => {
+    setPacientes(prev => [...prev, mapearPaciente(nuevo)])
   }
 
+  // Cambio de estado: el backend todavía no guarda estado de paciente, queda local
   const cambiarEstado = (id: string, estado: EstadoPaciente) => {
     setPacientes(prev => prev.map(p => (p.id === id ? { ...p, estado } : p)))
   }
 
-  const eliminarPaciente = (id: string) => {
-    if (!window.confirm('¿Seguro que querés eliminar este paciente?')) return
-    setPacientes(prev => prev.filter(p => p.id !== id))
+  // ELIMINAR: 1) abre el modal  2) si confirma, DELETE real
+  const pedirEliminacion = (id: string) => {
+    setPacienteAEliminar(pacientes.find(p => p.id === id) ?? null)
+  }
+
+  const confirmarEliminacion = async () => {
+    if (!pacienteAEliminar) return
+    const id = pacienteAEliminar.id
+
+    setEliminando(true)
+    try {
+      await pacientesService.remove(Number(id))
+      setPacientes(prev => prev.filter(p => p.id !== id))
+      toast.success('Paciente eliminado')
+      setPacienteAEliminar(null)
+    } catch (err) {
+      toast.error(extraerMensajeError(err))
+    } finally {
+      setEliminando(false)
+    }
   }
 
   // Filtros combinados: se calculan en cada render, no se guardan en el estado
@@ -127,9 +153,9 @@ export default function PaginaPacientes() {
           <p className="mt-1 text-slate-500">Gestión y seguimiento de pacientes de Clínica Salud Integral</p>
         </div>
 
-        {/* Formulario */}
+        {/* Formulario (POST real) */}
         <div className="mb-6 rounded-xl bg-white p-4 shadow-sm md:p-6">
-          <FormularioPaciente onAgregar={agregarPaciente} />
+          <FormularioPaciente onCreado={handlePacienteCreado} />
         </div>
 
         {/* Filtros */}
@@ -155,7 +181,7 @@ export default function PaginaPacientes() {
                 key={p.id}
                 paciente={p}
                 onCambiarEstado={cambiarEstado}
-                onEliminar={eliminarPaciente}
+                onEliminar={pedirEliminacion}
               />
             ))}
           </div>
@@ -172,6 +198,16 @@ export default function PaginaPacientes() {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmación para eliminar */}
+      <ModalConfirmacion
+        abierto={pacienteAEliminar !== null}
+        titulo="Eliminar paciente"
+        mensaje={`¿Seguro que querés eliminar a ${pacienteAEliminar?.nombre ?? ''} ${pacienteAEliminar?.apellido ?? ''}? Esta acción no se puede deshacer.`}
+        cargando={eliminando}
+        onConfirmar={confirmarEliminacion}
+        onCancelar={() => setPacienteAEliminar(null)}
+      />
     </main>
   )
 }

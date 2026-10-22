@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 const LINKS = [
   { to: '/', texto: 'Dashboard', icono: 'dashboard' },
   { to: '/pacientes', texto: 'Pacientes', icono: 'personal_injury' },
+  { to: '/citas', texto: 'Citas', icono: 'event_note' },
   { to: '/citas/nueva', texto: 'Nueva cita', icono: 'calendar_month' },
 ]
 
@@ -26,7 +27,7 @@ export default function Layout() {
             <NavLink
               key={link.to}
               to={link.to}
-              end={link.to === '/'}
+              end={link.to === '/' || link.to === '/citas'}
               className={({ isActive }) =>
                 `flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                   isActive ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-100'
