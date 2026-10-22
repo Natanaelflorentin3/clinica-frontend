@@ -27,3 +27,9 @@ export interface CitaApi {
   medicoId: number;
   estado: EstadoCitaApi;
 }
+
+// Cita tal como la devuelve GET /appointments (incluye paciente y médico)
+export interface CitaConDetalle extends CitaApi {
+  paciente: PacienteApi;
+  medico: MedicoApi;
+}
