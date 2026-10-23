@@ -8,111 +8,44 @@
 // 4. No es responsive: el sidebar fijo (w-64) y el pl-64 del contenido rompen
 //    el layout en pantallas de celular.
 
-import { useEffect, useState } from 'react'
-import type { ChangeEvent } from 'react'
-import { api } from '../lib/axios'
-import type { EstadoPaciente, FiltroEstado, Paciente } from '../types/paciente'
-import type { PacienteApi } from '../types/api'
+import { useEffect } from 'react'
+import { usePacientesStore } from '../stores/pacientesStore'
+import { useFiltrosStore } from '../stores/filtrosStore'
+import { useDebounce } from '../hooks/useDebounce'
 import PacienteCard from '../components/PacienteCard'
 import FiltrosPacientes from '../components/FiltrosPacientes'
 import FormularioPaciente from '../components/FormularioPaciente'
 
-// Convierte el paciente que manda el backend al formato que usan nuestros componentes.
-// El backend todavía no tiene estado, especialidad ni última cita: usamos valores por defecto.
-const mapearPaciente = (p: PacienteApi): Paciente => ({
-  id: String(p.id),
-  nombre: p.nombre,
-  apellido: p.apellido,
-  email: p.email,
-  telefono: p.telefono,
-  especialidadAsignada: 'Sin asignar',
-  ultimaCita: 'Sin citas',
-  estado: 'activo',
-})
-
 export default function PaginaPacientes() {
-  // Estado de los datos y de la petición
-  const [pacientes, setPacientes] = useState<Paciente[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState(false)
+  // Datos de la API: vienen del store (un selector por campo)
+  const pacientes = usePacientesStore(s => s.pacientes)
+  const total = usePacientesStore(s => s.total)
+  const cargando = usePacientesStore(s => s.cargando)
+  const error = usePacientesStore(s => s.error)
+  const cargar = usePacientesStore(s => s.cargar)
 
-  // Estado de los filtros
-  const [busqueda, setBusqueda] = useState('')
-  const [estadoFiltro, setEstadoFiltro] = useState<FiltroEstado>('Todos')
+  // Filtros: viven en su propio store, por eso NO se pierden al cambiar de ruta
+  const query = useFiltrosStore(s => s.queryPacientes)
+  const estadoFiltro = useFiltrosStore(s => s.estadoPacienteFiltro)
+  const resetFiltros = useFiltrosStore(s => s.resetFiltros)
 
-  const cargarPacientes = () => {
-    setCargando(true)
-    setError(false)
-    api.get<PacienteApi[]>('/patients')
-      .then((res) => setPacientes(res.data.map(mapearPaciente)))
-      .catch(() => setError(true))
-      .finally(() => setCargando(false))
-  }
+  // El valor viene del store, pero al hook no le importa: espera 350ms sin cambios
+  const queryDebounced = useDebounce(query, 350)
 
-  useEffect(cargarPacientes, [])
+  // Una sola petición, 350ms después de la última tecla (query vacía = todos los pacientes)
+  useEffect(() => {
+    cargar(queryDebounced)
+  }, [queryDebounced, cargar])
 
-  // Handlers de filtros
-  const handleBusquedaChange = (e: ChangeEvent<HTMLInputElement>) => setBusqueda(e.target.value)
-  const handleEstadoFiltroChange = (e: ChangeEvent<HTMLSelectElement>) =>
-    setEstadoFiltro(e.target.value as FiltroEstado)
-  const limpiarFiltros = () => {
-    setBusqueda('')
-    setEstadoFiltro('Todos')
-  }
+  // Mostramos el spinner mientras el usuario escribe o mientras llega la respuesta
+  const buscando = cargando || query !== queryDebounced
 
-  // CRUD local (inmutable) — se conecta al backend más adelante
-  const agregarPaciente = (nuevo: Paciente) => {
-    setPacientes(prev => [...prev, nuevo])
-  }
-
-  const cambiarEstado = (id: string, estado: EstadoPaciente) => {
-    setPacientes(prev => prev.map(p => (p.id === id ? { ...p, estado } : p)))
-  }
-
-  const eliminarPaciente = (id: string) => {
-    if (!window.confirm('¿Seguro que querés eliminar este paciente?')) return
-    setPacientes(prev => prev.filter(p => p.id !== id))
-  }
-
-  // Filtros combinados: se calculan en cada render, no se guardan en el estado
-  const texto = busqueda.trim().toLowerCase()
+  // La búsqueda por texto la hace el backend; el filtro de estado es local
   const pacientesFiltrados = pacientes.filter(
-    p =>
-      `${p.nombre} ${p.apellido}`.toLowerCase().includes(texto) &&
-      (estadoFiltro === 'Todos' || p.estado === estadoFiltro)
+    p => estadoFiltro === 'Todos' || p.estado === estadoFiltro
   )
   const cantidad = pacientesFiltrados.length
-  const total = pacientes.length
 
-  // ---- Cargando ----
-  if (cargando) {
-    return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-slate-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-700" />
-        <p>Cargando pacientes...</p>
-      </main>
-    )
-  }
-
-  // ---- Error ----
-  if (error) {
-    return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-5xl">⚠️</p>
-        <p className="font-semibold text-slate-800">No se pudieron cargar los pacientes</p>
-        <p className="text-sm text-slate-500">Revisá que el backend esté corriendo e intentá de nuevo.</p>
-        <button
-          type="button"
-          onClick={cargarPacientes}
-          className="mt-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-        >
-          Reintentar
-        </button>
-      </main>
-    )
-  }
-
-  // ---- Éxito ----
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-4 md:p-8">
@@ -127,49 +60,67 @@ export default function PaginaPacientes() {
           <p className="mt-1 text-slate-500">Gestión y seguimiento de pacientes de Clínica Salud Integral</p>
         </div>
 
-        {/* Formulario */}
+        {/* Formulario: crea directo con el store */}
         <div className="mb-6 rounded-xl bg-white p-4 shadow-sm md:p-6">
-          <FormularioPaciente onAgregar={agregarPaciente} />
+          <FormularioPaciente />
         </div>
 
-        {/* Filtros */}
+        {/* Filtros: leen y escriben en useFiltrosStore */}
         <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
-          <FiltrosPacientes
-            busqueda={busqueda}
-            estadoFiltro={estadoFiltro}
-            onBusquedaChange={handleBusquedaChange}
-            onEstadoChange={handleEstadoFiltroChange}
-            onLimpiar={limpiarFiltros}
-          />
+          <FiltrosPacientes buscando={buscando} />
         </div>
 
-        <p className="mb-4 text-sm text-slate-500">
-          {cantidad} paciente{cantidad === 1 ? '' : 's'} encontrado{cantidad === 1 ? '' : 's'}
-        </p>
-
-        {/* Lista: columna en móvil, grilla en desktop */}
-        {cantidad > 0 ? (
-          <div className="flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3">
-            {pacientesFiltrados.map(p => (
-              <PacienteCard
-                key={p.id}
-                paciente={p}
-                onCambiarEstado={cambiarEstado}
-                onEliminar={eliminarPaciente}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl bg-white p-8 text-center shadow-sm">
-            <p className="text-slate-500">No hay pacientes que coincidan con los filtros.</p>
+        {/* ---- Error ---- */}
+        {error ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl bg-white p-8 text-center shadow-sm">
+            <p className="text-5xl">⚠️</p>
+            <p className="font-semibold text-slate-800">No se pudieron cargar los pacientes</p>
+            <p className="text-sm text-slate-500">{error}</p>
             <button
               type="button"
-              onClick={limpiarFiltros}
-              className="mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-600"
+              onClick={() => cargar(queryDebounced)}
+              className="mt-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
             >
-              Limpiar filtros
+              Reintentar
             </button>
           </div>
+        ) : cargando && pacientes.length === 0 ? (
+          /* ---- Primera carga ---- */
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-700" />
+            <p>Cargando pacientes...</p>
+          </div>
+        ) : (
+          /* ---- Resultados ---- */
+          <>
+            <p className="mb-4 text-sm text-slate-500">
+              {cantidad} paciente{cantidad === 1 ? '' : 's'} encontrado{cantidad === 1 ? '' : 's'}
+              {queryDebounced && <> para “{queryDebounced}”</>}
+            </p>
+
+            {cantidad > 0 ? (
+              <div
+                className={`flex flex-col gap-4 transition-opacity md:grid md:grid-cols-2 lg:grid-cols-3 ${
+                  buscando ? 'opacity-60' : ''
+                }`}
+              >
+                {pacientesFiltrados.map(p => (
+                  <PacienteCard key={p.id} paciente={p} />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl bg-white p-8 text-center shadow-sm">
+                <p className="text-slate-500">No hay pacientes que coincidan con los filtros.</p>
+                <button
+                  type="button"
+                  onClick={resetFiltros}
+                  className="mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-600"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
