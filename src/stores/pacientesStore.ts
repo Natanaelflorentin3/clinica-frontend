@@ -21,6 +21,7 @@ export const mapearPaciente = (p: PacienteApi): Paciente => ({
 
 interface PacientesState {
   pacientes: Paciente[];
+  total: number;
   cargando: boolean;
   error: string | null;
   cargar: (query?: string) => Promise<void>;
@@ -30,19 +31,31 @@ interface PacientesState {
   cambiarEstado: (id: string, estado: EstadoPaciente) => void;
 }
 
+// Contador para descartar respuestas de búsquedas viejas (condición de carrera)
+let ultimaPeticion = 0;
+
 export const usePacientesStore = create<PacientesState>()(
   devtools(
     (set) => ({
       pacientes: [],
+      total: 0,
       cargando: false,
       error: null,
 
       cargar: async (query) => {
+        // Cada búsqueda tiene un número; si llega tarde la respuesta de una búsqueda vieja, se ignora
+        const peticion = ++ultimaPeticion;
         set({ cargando: true, error: null }, undefined, 'pacientes/cargar:inicio');
         try {
-          const res = await pacientesService.getAll(query);
-          set({ pacientes: res.data.map(mapearPaciente), cargando: false }, undefined, 'pacientes/cargar:exito');
+          const res = await pacientesService.buscar(query);
+          if (peticion !== ultimaPeticion) return;
+          set(
+            { pacientes: res.data.data.map(mapearPaciente), total: res.data.total, cargando: false },
+            undefined,
+            'pacientes/cargar:exito'
+          );
         } catch (err) {
+          if (peticion !== ultimaPeticion) return;
           set({ error: extraerMensajeError(err), cargando: false }, undefined, 'pacientes/cargar:error');
         }
       },
@@ -53,7 +66,7 @@ export const usePacientesStore = create<PacientesState>()(
         try {
           const res = await pacientesService.create(data);
           set(
-            (state) => ({ pacientes: [...state.pacientes, mapearPaciente(res.data)] }),
+            (state) => ({ pacientes: [...state.pacientes, mapearPaciente(res.data)], total: state.total + 1 }),
             undefined,
             'pacientes/crear'
           );
@@ -83,7 +96,7 @@ export const usePacientesStore = create<PacientesState>()(
         try {
           await pacientesService.remove(Number(id));
           set(
-            (state) => ({ pacientes: state.pacientes.filter((p) => p.id !== id) }),
+            (state) => ({ pacientes: state.pacientes.filter((p) => p.id !== id), total: state.total - 1 }),
             undefined,
             'pacientes/eliminar'
           );

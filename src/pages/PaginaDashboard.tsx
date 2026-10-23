@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePacientesStore } from '../stores/pacientesStore'
-import { useMedicosStore } from '../stores/medicosStore'
+import { useApi } from '../hooks/useApi'
 import { useCitasStore } from '../stores/citasStore'
 import type { Metrica } from '../types'
+import type { MedicoApi } from '../types/api'
 import MetricCard from '../components/MetricCard'
 import StatusBadge from '../components/StatusBadge'
 
@@ -12,15 +13,13 @@ const mostrar = (cargando: boolean, valor: number): number | string => (cargando
 
 export default function PaginaDashboard() {
   // Datos de la API: desde los stores
-  const pacientes = usePacientesStore(s => s.pacientes)
+  const totalPacientes = usePacientesStore(s => s.total)
   const cargandoPacientes = usePacientesStore(s => s.cargando)
   const errorPacientes = usePacientesStore(s => s.error)
   const cargarPacientes = usePacientesStore(s => s.cargar)
 
-  const medicos = useMedicosStore(s => s.medicos)
-  const cargandoMedicos = useMedicosStore(s => s.cargando)
-  const errorMedicos = useMedicosStore(s => s.error)
-  const cargarMedicos = useMedicosStore(s => s.cargar)
+  // Médicos: con el hook genérico useApi<T> (maneja cargando, error y cancelación)
+  const { data: medicos, cargando: cargandoMedicos, error: errorMedicos } = useApi<MedicoApi[]>('/doctors')
 
   const citas = useCitasStore(s => s.citas)
   const cargandoCitas = useCitasStore(s => s.cargando)
@@ -33,9 +32,8 @@ export default function PaginaDashboard() {
 
   useEffect(() => {
     cargarPacientes()
-    cargarMedicos()
     cargarCitas()
-  }, [cargarPacientes, cargarMedicos, cargarCitas])
+  }, [cargarPacientes, cargarCitas])
 
   // Contamos por estado sobre las citas del store (una sola petición en vez de dos)
   const citasProgramadas = citas.filter(c => c.estado === 'PROGRAMADA').length
@@ -45,8 +43,8 @@ export default function PaginaDashboard() {
   const toggleMantenimiento = () => setMantenimiento(prev => !prev)
 
   const metricas: Metrica[] = [
-    { id: 'pacientes', titulo: 'Pacientes', valor: mostrar(cargandoPacientes, pacientes.length), descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' },
-    { id: 'medicos', titulo: 'Médicos', valor: mostrar(cargandoMedicos, medicos.length), descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' },
+    { id: 'pacientes', titulo: 'Pacientes', valor: mostrar(cargandoPacientes, totalPacientes), descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' },
+    { id: 'medicos', titulo: 'Médicos', valor: mostrar(cargandoMedicos, medicos?.length ?? 0), descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' },
     { id: 'programadas', titulo: 'Citas Programadas', valor: mostrar(cargandoCitas, citasProgramadas), descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' },
     { id: 'completadas', titulo: 'Citas Completadas', valor: mostrar(cargandoCitas, citasCompletadas), descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' },
   ]

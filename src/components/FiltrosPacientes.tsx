@@ -10,8 +10,12 @@ const OPCIONES_ESTADO: { valor: FiltroEstado; texto: string }[] = [
   { valor: 'en_espera', texto: 'En espera' },
 ]
 
-// Lee y escribe los filtros directo en el store: ya no recibe props
-export default function FiltrosPacientes() {
+interface FiltrosPacientesProps {
+  buscando: boolean
+}
+
+// Lee y escribe los filtros directo en el store (filtrosStore)
+export default function FiltrosPacientes({ buscando }: FiltrosPacientesProps) {
   const busqueda = useFiltrosStore(s => s.queryPacientes)
   const estadoFiltro = useFiltrosStore(s => s.estadoPacienteFiltro)
   const setQueryPacientes = useFiltrosStore(s => s.setQueryPacientes)
@@ -25,7 +29,7 @@ export default function FiltrosPacientes() {
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center">
       <div className="md:flex-1">
-        <BuscadorPacientes value={busqueda} onChange={handleBusquedaChange} />
+        <BuscadorPacientes value={busqueda} onChange={handleBusquedaChange} buscando={buscando} />
       </div>
       <select
         value={estadoFiltro}
