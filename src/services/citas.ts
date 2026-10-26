@@ -1,17 +1,14 @@
 import { api } from '../lib/axios';
 import type { CitaApi, CitaConDetalle, EstadoCitaApi } from '../types/api';
-
-// DTO para crear una cita: solo lo que manda el cliente
-export type CitaDTO = Pick<CitaApi, 'pacienteId' | 'medicoId' | 'fecha'>;
-
-// Una cita nace PROGRAMADA y solo puede pasar a COMPLETADA o CANCELADA
-export type EstadoFinalCita = Exclude<EstadoCitaApi, 'PROGRAMADA'>;
+import type { ActualizarEstadoCitaDTO, CrearCitaDTO, EstadoFinalCita } from '../types/dtos';
 
 export const getAll = (estado?: EstadoCitaApi) =>
   api.get<CitaConDetalle[]>('/appointments', { params: estado ? { estado } : {} });
 
-export const create = (data: CitaDTO) =>
+export const create = (data: CrearCitaDTO) =>
   api.post<CitaApi>('/appointments', data);
 
-export const updateEstado = (id: number, estado: EstadoFinalCita) =>
-  api.patch<CitaApi>(`/appointments/${id}/status`, { estado });
+export const updateEstado = (id: number, estado: EstadoFinalCita) => {
+  const body: ActualizarEstadoCitaDTO = { estado };
+  return api.patch<CitaApi>(`/appointments/${id}/status`, body);
+};

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { usePacientesStore } from '../stores/pacientesStore'
 import { useApi } from '../hooks/useApi'
 import { useCitasStore } from '../stores/citasStore'
@@ -93,6 +93,12 @@ export default function PaginaDashboard() {
           {metricas.map(m => (
             <MetricCard key={m.id} metrica={m} />
           ))}
+        </div>
+
+        <div className="mt-6 text-right">
+          <Link to="/reportes" className="text-sm font-semibold text-emerald-700 hover:text-emerald-600">
+            Ver reportes completos →
+          </Link>
         </div>
       </div>
     </main>

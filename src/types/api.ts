@@ -41,3 +41,9 @@ export interface RespuestaPaginada<T> {
   pagina: number;
   totalPaginas: number;
 }
+
+// GET /reports/appointments-by-specialty
+export interface ReporteEspecialidadApi {
+  especialidad: string;
+  total_citas: number;
+}

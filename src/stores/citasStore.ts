@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import * as citasService from '../services/citas';
-import type { CitaDTO, EstadoFinalCita } from '../services/citas';
+import type { CrearCitaDTO, EstadoFinalCita } from '../types/dtos';
 import * as pacientesService from '../services/pacientes';
 import { extraerMensajeError } from '../lib/errorHandler';
 import type { CitaConDetalle } from '../types/api';
@@ -15,7 +15,7 @@ interface CitasState {
   cargarPorPaciente: (pacienteId: number) => Promise<void>;
   seleccionar: (id: number | null) => void;
   actualizarEstado: (id: number, estado: EstadoFinalCita) => Promise<void>;
-  agregarCita: (data: CitaDTO) => Promise<void>;
+  agregarCita: (data: CrearCitaDTO) => Promise<void>;
 }
 
 export const useCitasStore = create<CitasState>()(
