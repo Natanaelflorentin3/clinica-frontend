@@ -33,3 +33,11 @@ export interface CitaConDetalle extends CitaApi {
   paciente: PacienteApi;
   medico: MedicoApi;
 }
+
+// Respuesta paginada genérica (GET /patients?pagina=1&limite=...)
+export interface RespuestaPaginada<T> {
+  data: T[];
+  total: number;
+  pagina: number;
+  totalPaginas: number;
+}
