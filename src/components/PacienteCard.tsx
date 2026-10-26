@@ -1,20 +1,43 @@
+import { useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import type { EstadoPaciente, Paciente } from '../types/paciente'
+import { usePacientesStore } from '../stores/pacientesStore'
+import { extraerMensajeError } from '../lib/errorHandler'
 import BadgeEstado from './BadgeEstado'
+import ModalConfirmacion from './ModalConfirmacion'
 
 interface PacienteCardProps {
   paciente: Paciente
-  onCambiarEstado: (id: string, estado: EstadoPaciente) => void
-  onEliminar: (id: string) => void
 }
 
 const obtenerIniciales = (nombre: string, apellido: string): string =>
   `${nombre[0] ?? ''}${apellido[0] ?? ''}`.toUpperCase()
 
-export default function PacienteCard({ paciente, onCambiarEstado, onEliminar }: PacienteCardProps) {
+export default function PacienteCard({ paciente }: PacienteCardProps) {
+  // Acciones del store: ya no llegan por props
+  const cambiarEstado = usePacientesStore(s => s.cambiarEstado)
+  const eliminar = usePacientesStore(s => s.eliminar)
+
+  // Estado de UI local (el modal es de esta card, no es dato de la API)
+  const [confirmando, setConfirmando] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
+
   const handleEstadoChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    onCambiarEstado(paciente.id, e.target.value as EstadoPaciente)
+    cambiarEstado(paciente.id, e.target.value as EstadoPaciente)
+  }
+
+  const confirmarEliminacion = async () => {
+    setEliminando(true)
+    try {
+      await eliminar(paciente.id)
+      toast.success('Paciente eliminado')
+      // no hace falta cerrar el modal: la card desaparece de la lista
+    } catch (err) {
+      toast.error(extraerMensajeError(err))
+      setEliminando(false)
+    }
   }
 
   return (
@@ -78,13 +101,22 @@ export default function PacienteCard({ paciente, onCambiarEstado, onEliminar }: 
           </Link>
           <button
             type="button"
-            onClick={() => onEliminar(paciente.id)}
+            onClick={() => setConfirmando(true)}
             className="rounded-lg px-3 py-1 text-sm font-medium text-rose-600 hover:bg-rose-50"
           >
             Eliminar
           </button>
         </div>
       </div>
+
+      <ModalConfirmacion
+        abierto={confirmando}
+        titulo="Eliminar paciente"
+        mensaje={`¿Seguro que querés eliminar a ${paciente.nombre} ${paciente.apellido}? Esta acción no se puede deshacer.`}
+        cargando={eliminando}
+        onConfirmar={confirmarEliminacion}
+        onCancelar={() => setConfirmando(false)}
+      />
     </article>
   )
 }

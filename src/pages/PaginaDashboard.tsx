@@ -1,53 +1,52 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/axios'
+import { usePacientesStore } from '../stores/pacientesStore'
+import { useApi } from '../hooks/useApi'
+import { useCitasStore } from '../stores/citasStore'
 import type { Metrica } from '../types'
-import type { CitaApi, MedicoApi, PacienteApi } from '../types/api'
+import type { MedicoApi } from '../types/api'
 import MetricCard from '../components/MetricCard'
 import StatusBadge from '../components/StatusBadge'
 
-// Mientras el valor es null (todavía cargando) mostramos "…"
-const mostrar = (valor: number | null): number | string => valor ?? '…'
+// Mientras se carga mostramos "…"
+const mostrar = (cargando: boolean, valor: number): number | string => (cargando ? '…' : valor)
 
 export default function PaginaDashboard() {
-  // Métricas reales (null = todavía no llegaron)
-  const [totalPacientes, setTotalPacientes] = useState<number | null>(null)
-  const [totalMedicos, setTotalMedicos] = useState<number | null>(null)
-  const [citasProgramadas, setCitasProgramadas] = useState<number | null>(null)
-  const [citasCompletadas, setCitasCompletadas] = useState<number | null>(null)
-  const [error, setError] = useState(false)
+  // Datos de la API: desde los stores
+  const totalPacientes = usePacientesStore(s => s.total)
+  const cargandoPacientes = usePacientesStore(s => s.cargando)
+  const errorPacientes = usePacientesStore(s => s.error)
+  const cargarPacientes = usePacientesStore(s => s.cargar)
 
-  // Estado del modo mantenimiento
+  // Médicos: con el hook genérico useApi<T> (maneja cargando, error y cancelación)
+  const { data: medicos, cargando: cargandoMedicos, error: errorMedicos } = useApi<MedicoApi[]>('/doctors')
+
+  const citas = useCitasStore(s => s.citas)
+  const cargandoCitas = useCitasStore(s => s.cargando)
+  const errorCitas = useCitasStore(s => s.error)
+  const cargarCitas = useCitasStore(s => s.cargar)
+
+  // Estado de UI local (no es dato de la API)
   const [mantenimiento, setMantenimiento] = useState<boolean>(false)
-
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Nuestro backend devuelve arrays planos, por eso usamos .length en vez de .total
-    api.get<PacienteApi[]>('/patients')
-      .then((res) => setTotalPacientes(res.data.length))
-      .catch(() => setError(true))
+    cargarPacientes()
+    cargarCitas()
+  }, [cargarPacientes, cargarCitas])
 
-    api.get<MedicoApi[]>('/doctors')
-      .then((res) => setTotalMedicos(res.data.length))
-      .catch(() => setError(true))
-
-    api.get<CitaApi[]>('/appointments', { params: { estado: 'PROGRAMADA' } })
-      .then((res) => setCitasProgramadas(res.data.length))
-      .catch(() => setError(true))
-
-    api.get<CitaApi[]>('/appointments', { params: { estado: 'COMPLETADA' } })
-      .then((res) => setCitasCompletadas(res.data.length))
-      .catch(() => setError(true))
-  }, [])
+  // Contamos por estado sobre las citas del store (una sola petición en vez de dos)
+  const citasProgramadas = citas.filter(c => c.estado === 'PROGRAMADA').length
+  const citasCompletadas = citas.filter(c => c.estado === 'COMPLETADA').length
+  const error = errorPacientes ?? errorMedicos ?? errorCitas
 
   const toggleMantenimiento = () => setMantenimiento(prev => !prev)
 
   const metricas: Metrica[] = [
-    { id: 'pacientes', titulo: 'Pacientes', valor: mostrar(totalPacientes), descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' },
-    { id: 'medicos', titulo: 'Médicos', valor: mostrar(totalMedicos), descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' },
-    { id: 'programadas', titulo: 'Citas Programadas', valor: mostrar(citasProgramadas), descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' },
-    { id: 'completadas', titulo: 'Citas Completadas', valor: mostrar(citasCompletadas), descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' },
+    { id: 'pacientes', titulo: 'Pacientes', valor: mostrar(cargandoPacientes, totalPacientes), descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' },
+    { id: 'medicos', titulo: 'Médicos', valor: mostrar(cargandoMedicos, medicos?.length ?? 0), descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' },
+    { id: 'programadas', titulo: 'Citas Programadas', valor: mostrar(cargandoCitas, citasProgramadas), descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' },
+    { id: 'completadas', titulo: 'Citas Completadas', valor: mostrar(cargandoCitas, citasCompletadas), descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' },
   ]
 
   return (
