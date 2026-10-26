@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import { useAuthStore } from '../stores/authStore'
 
 const LINKS = [
   { to: '/', texto: 'Dashboard', icono: 'dashboard' },
@@ -9,6 +11,20 @@ const LINKS = [
 ]
 
 export default function Layout() {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const usuario = useAuthStore(s => s.usuario)
+  const logout = useAuthStore(s => s.logout)
+  const navigate = useNavigate()
+
+  // Sin sesión no se ve ninguna pantalla (mañana esto pasa a rutas protegidas por rol)
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+
+  const cerrarSesion = () => {
+    logout()
+    toast.success('Sesión cerrada')
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 md:flex">
       {/* Sidebar: barra arriba en móvil, fija a la izquierda en desktop */}
@@ -40,6 +56,20 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Usuario logueado + cerrar sesión */}
+        <div className="border-t border-slate-100 px-6 py-4 md:absolute md:inset-x-0 md:bottom-0">
+          <p className="truncate text-sm font-semibold text-slate-800">{usuario?.nombre}</p>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">{usuario?.rol}</p>
+          <button
+            type="button"
+            onClick={cerrarSesion}
+            className="flex items-center gap-1.5 text-sm font-medium text-rose-600 hover:text-rose-500"
+          >
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       {/* Acá React Router pone la página de la ruta activa */}

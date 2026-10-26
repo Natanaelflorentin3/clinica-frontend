@@ -7,10 +7,14 @@ import PaginaNuevaCita from './pages/PaginaNuevaCita'
 import PaginaCitas from './pages/PaginaCitas'
 import PaginaReportes from './pages/PaginaReportes'
 import PaginaNotFound from './pages/PaginaNotFound'
+import PaginaLogin from './pages/PaginaLogin'
 
 export default function App() {
   return (
     <Routes>
+      {/* Login: fuera del Layout (sin sidebar) */}
+      <Route path="/login" element={<PaginaLogin />} />
+
       {/* Layout envuelve a todas las páginas */}
       <Route element={<Layout />}>
         <Route path="/" element={<PaginaDashboard />} />
