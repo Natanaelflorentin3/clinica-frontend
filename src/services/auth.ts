@@ -1,7 +1,8 @@
 import { api } from '../lib/axios';
 import type { LoginFormData } from '../schemas/loginSchema';
 
-export type RolUsuario = 'RECEPCIONISTA' | 'MEDICO' | 'GERENCIA';
+// ADMIN todavía no existe en el backend, pero la consigna lo pide para /reportes
+export type RolUsuario = 'RECEPCIONISTA' | 'MEDICO' | 'GERENCIA' | 'ADMIN';
 
 export interface LoginResponse {
   token: string;
