@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../stores/authStore'
 
@@ -10,16 +10,13 @@ const LINKS = [
   { to: '/reportes', texto: 'Reportes', icono: 'bar_chart' },
 ]
 
+// La verificación de sesión ahora la hace <RutaProtegida /> (en App.tsx), no el Layout
 export default function Layout() {
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const usuario = useAuthStore(s => s.usuario)
   const logout = useAuthStore(s => s.logout)
   const navigate = useNavigate()
 
-  // Sin sesión no se ve ninguna pantalla (mañana esto pasa a rutas protegidas por rol)
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-
-  const cerrarSesion = () => {
+  const handleLogout = () => {
     logout()
     toast.success('Sesión cerrada')
     navigate('/login', { replace: true })
@@ -56,24 +53,31 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+      </aside>
 
-        {/* Usuario logueado + cerrar sesión */}
-        <div className="border-t border-slate-100 px-6 py-4 md:absolute md:inset-x-0 md:bottom-0">
-          <p className="truncate text-sm font-semibold text-slate-800">{usuario?.nombre}</p>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">{usuario?.rol}</p>
+      <div className="flex-1 md:ml-64">
+        {/* Header con los datos de la sesión */}
+        <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3 md:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 font-bold uppercase text-emerald-700">
+              {usuario?.nombre.charAt(0)}
+            </div>
+            <div className="text-right leading-tight">
+              <p className="text-sm font-semibold text-slate-800">{usuario?.nombre}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{usuario?.rol}</p>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={cerrarSesion}
-            className="flex items-center gap-1.5 text-sm font-medium text-rose-600 hover:text-rose-500"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
             Cerrar sesión
           </button>
-        </div>
-      </aside>
+        </header>
 
-      {/* Acá React Router pone la página de la ruta activa */}
-      <div className="flex-1 md:ml-64">
+        {/* Acá React Router pone la página de la ruta activa */}
         <Outlet />
       </div>
     </div>
