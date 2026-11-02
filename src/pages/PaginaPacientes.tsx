@@ -8,34 +8,31 @@
 // 4. No es responsive: el sidebar fijo (w-64) y el pl-64 del contenido rompen
 //    el layout en pantallas de celular.
 
-import { useEffect } from 'react'
-import { usePacientesStore } from '../stores/pacientesStore'
-import { useFiltrosStore } from '../stores/filtrosStore'
+import { useState } from 'react'
+import { usePacientes } from '../features/pacientes/hooks/usePacientes'
+import { useFiltrosPacientes } from '../shared/hooks/useFiltros'
 import { useDebounce } from '../hooks/useDebounce'
 import PacienteCard from '../components/PacienteCard'
 import FiltrosPacientes from '../components/FiltrosPacientes'
 import FormularioPaciente from '../components/FormularioPaciente'
+import SkeletonPacienteRow from '../shared/components/skeletons/SkeletonPacienteRow'
+import AlertaBanner from '../shared/components/ui/AlertaBanner'
+import EstadoVacio from '../shared/components/ui/EstadoVacio'
 
 export default function PaginaPacientes() {
-  // Datos de la API: vienen del store (un selector por campo)
-  const pacientes = usePacientesStore(s => s.pacientes)
-  const total = usePacientesStore(s => s.total)
-  const cargando = usePacientesStore(s => s.cargando)
-  const error = usePacientesStore(s => s.error)
-  const cargar = usePacientesStore(s => s.cargar)
+  // Filtros: viven en su propio store (por eso NO se pierden al cambiar de ruta),
+  // pero la página solo los conoce a través del hook
+  const { query, estado: estadoFiltro, resetFiltros } = useFiltrosPacientes()
 
-  // Filtros: viven en su propio store, por eso NO se pierden al cambiar de ruta
-  const query = useFiltrosStore(s => s.queryPacientes)
-  const estadoFiltro = useFiltrosStore(s => s.estadoPacienteFiltro)
-  const resetFiltros = useFiltrosStore(s => s.resetFiltros)
+  // Estado de UI local: mostrar u ocultar el formulario de alta
+  const [abrirFormulario, setAbrirFormulario] = useState(false)
 
   // El valor viene del store, pero al hook no le importa: espera 350ms sin cambios
   const queryDebounced = useDebounce(query, 350)
 
-  // Una sola petición, 350ms después de la última tecla (query vacía = todos los pacientes)
-  useEffect(() => {
-    cargar(queryDebounced)
-  }, [queryDebounced, cargar])
+  // Datos de la API: el hook hace la carga inicial y vuelve a buscar cuando cambia la query
+  // (una sola petición, 350ms después de la última tecla; query vacía = todos los pacientes)
+  const { pacientes, total, cargando, error, recargar } = usePacientes(queryDebounced)
 
   // Mostramos el spinner mientras el usuario escribe o mientras llega la respuesta
   const buscando = cargando || query !== queryDebounced
@@ -46,50 +43,84 @@ export default function PaginaPacientes() {
   )
   const cantidad = pacientesFiltrados.length
 
+  // Sin búsqueda ni filtro activo = la clínica no tiene pacientes todavía
+  const sinFiltros = queryDebounced === '' && estadoFiltro === 'Todos'
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-4 md:p-8">
         {/* Encabezado */}
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-800">Pacientes</h1>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-              {total} paciente{total === 1 ? '' : 's'} registrado{total === 1 ? '' : 's'}
-            </span>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-800">Pacientes</h1>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                {total} paciente{total === 1 ? '' : 's'} registrado{total === 1 ? '' : 's'}
+              </span>
+            </div>
+            <p className="mt-1 text-slate-500">Gestión y seguimiento de pacientes de Clínica Salud Integral</p>
           </div>
-          <p className="mt-1 text-slate-500">Gestión y seguimiento de pacientes de Clínica Salud Integral</p>
+          <button
+            type="button"
+            onClick={() => setAbrirFormulario(abierto => !abierto)}
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+          >
+            {abrirFormulario ? 'Cerrar formulario' : '+ Nuevo paciente'}
+          </button>
         </div>
 
         {/* Formulario: crea directo con el store */}
-        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm md:p-6">
-          <FormularioPaciente />
-        </div>
+        {abrirFormulario && (
+          <div className="mb-6 rounded-xl bg-white p-4 shadow-sm md:p-6">
+            <FormularioPaciente />
+          </div>
+        )}
 
         {/* Filtros: leen y escriben en useFiltrosStore */}
         <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
           <FiltrosPacientes buscando={buscando} />
         </div>
 
-        {/* ---- Error ---- */}
         {error ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl bg-white p-8 text-center shadow-sm">
-            <p className="text-5xl">⚠️</p>
-            <p className="font-semibold text-slate-800">No se pudieron cargar los pacientes</p>
-            <p className="text-sm text-slate-500">{error}</p>
-            <button
-              type="button"
-              onClick={() => cargar(queryDebounced)}
-              className="mt-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-            >
-              Reintentar
-            </button>
-          </div>
+          /* ---- Error ---- */
+          <AlertaBanner
+            tipo="error"
+            titulo="No se pudieron cargar los pacientes"
+            mensaje={error}
+            accion={
+              <button
+                type="button"
+                onClick={recargar}
+                className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
+              >
+                Reintentar
+              </button>
+            }
+          />
         ) : cargando && pacientes.length === 0 ? (
-          /* ---- Primera carga ---- */
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-700" />
-            <p>Cargando pacientes...</p>
+          /* ---- Primera carga: skeletons con la forma de las cards ---- */
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }, (_, i) => (
+              <SkeletonPacienteRow key={i} />
+            ))}
           </div>
+        ) : cantidad === 0 ? (
+          /* ---- Lista vacía ---- */
+          sinFiltros ? (
+            <EstadoVacio
+              icono="person_add"
+              titulo="No hay pacientes registrados"
+              descripcion="Cuando registres el primer paciente va a aparecer acá."
+              accion={{ label: 'Agregar paciente', onClick: () => setAbrirFormulario(true) }}
+            />
+          ) : (
+            <EstadoVacio
+              icono="search_off"
+              titulo="Ningún paciente coincide con la búsqueda"
+              descripcion="Probá con otro nombre o limpiá los filtros."
+              accion={{ label: 'Limpiar filtros', onClick: resetFiltros }}
+            />
+          )
         ) : (
           /* ---- Resultados ---- */
           <>
@@ -97,29 +128,15 @@ export default function PaginaPacientes() {
               {cantidad} paciente{cantidad === 1 ? '' : 's'} encontrado{cantidad === 1 ? '' : 's'}
               {queryDebounced && <> para “{queryDebounced}”</>}
             </p>
-
-            {cantidad > 0 ? (
-              <div
-                className={`flex flex-col gap-4 transition-opacity md:grid md:grid-cols-2 lg:grid-cols-3 ${
-                  buscando ? 'opacity-60' : ''
-                }`}
-              >
-                {pacientesFiltrados.map(p => (
-                  <PacienteCard key={p.id} paciente={p} />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl bg-white p-8 text-center shadow-sm">
-                <p className="text-slate-500">No hay pacientes que coincidan con los filtros.</p>
-                <button
-                  type="button"
-                  onClick={resetFiltros}
-                  className="mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-600"
-                >
-                  Limpiar filtros
-                </button>
-              </div>
-            )}
+            <div
+              className={`flex flex-col gap-4 transition-opacity md:grid md:grid-cols-2 lg:grid-cols-3 ${
+                buscando ? 'opacity-60' : ''
+              }`}
+            >
+              {pacientesFiltrados.map(p => (
+                <PacienteCard key={p.id} paciente={p} />
+              ))}
+            </div>
           </>
         )}
       </div>

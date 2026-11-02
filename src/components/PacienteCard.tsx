@@ -3,10 +3,10 @@ import type { ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import type { EstadoPaciente, Paciente } from '../types/paciente'
-import { usePacientesStore } from '../stores/pacientesStore'
+import { usePacientesAcciones } from '../features/pacientes/hooks/usePacientes'
 import { extraerMensajeError } from '../lib/errorHandler'
 import BadgeEstado from './BadgeEstado'
-import ModalConfirmacion from './ModalConfirmacion'
+import ModalConfirmacion from '../shared/components/ui/ModalConfirmacion'
 
 interface PacienteCardProps {
   paciente: Paciente
@@ -17,8 +17,7 @@ const obtenerIniciales = (nombre: string, apellido: string): string =>
 
 export default function PacienteCard({ paciente }: PacienteCardProps) {
   // Acciones del store: ya no llegan por props
-  const cambiarEstado = usePacientesStore(s => s.cambiarEstado)
-  const eliminar = usePacientesStore(s => s.eliminar)
+  const { cambiarEstado, eliminar } = usePacientesAcciones()
 
   // Estado de UI local (el modal es de esta card, no es dato de la API)
   const [confirmando, setConfirmando] = useState(false)

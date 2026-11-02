@@ -1,8 +1,6 @@
 import { api } from '../lib/axios';
 import type { CitaApi, MedicoApi, PacienteApi, RespuestaPaginada } from '../types/api';
-
-// DTO: un paciente sin id (el id lo genera la base de datos)
-export type PacienteDTO = Omit<PacienteApi, 'id'>;
+import type { ActualizarPacienteDTO, CrearPacienteDTO } from '../types/dtos';
 
 // GET /patients/:id devuelve el paciente con su historial de citas (y el médico de cada una)
 export type PacienteConCitas = PacienteApi & {
@@ -18,10 +16,10 @@ export const buscar = (query?: string, pagina: number = 1, limite: number = 100)
 export const getById = (id: number) =>
   api.get<PacienteConCitas>(`/patients/${id}`);
 
-export const create = (data: PacienteDTO) =>
+export const create = (data: CrearPacienteDTO) =>
   api.post<PacienteApi>('/patients', data);
 
-export const update = (id: number, data: Partial<PacienteDTO>) =>
+export const update = (id: number, data: ActualizarPacienteDTO) =>
   api.put<PacienteApi>(`/patients/${id}`, data);
 
 export const remove = (id: number) => api.delete(`/patients/${id}`);

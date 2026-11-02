@@ -1,39 +1,28 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { usePacientesStore } from '../stores/pacientesStore'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { usePacientes } from '../features/pacientes/hooks/usePacientes'
 import { useApi } from '../hooks/useApi'
-import { useCitasStore } from '../stores/citasStore'
+import { useCitas } from '../features/citas/hooks/useCitas'
 import type { Metrica } from '../types'
 import type { MedicoApi } from '../types/api'
 import MetricCard from '../components/MetricCard'
 import StatusBadge from '../components/StatusBadge'
+import SkeletonMetricCard from '../shared/components/skeletons/SkeletonMetricCard'
+import AlertaBanner from '../shared/components/ui/AlertaBanner'
 
-// Mientras se carga mostramos "…"
-const mostrar = (cargando: boolean, valor: number): number | string => (cargando ? '…' : valor)
 
 export default function PaginaDashboard() {
-  // Datos de la API: desde los stores
-  const totalPacientes = usePacientesStore(s => s.total)
-  const cargandoPacientes = usePacientesStore(s => s.cargando)
-  const errorPacientes = usePacientesStore(s => s.error)
-  const cargarPacientes = usePacientesStore(s => s.cargar)
+  // Datos de la API: cada hook hace su propia carga inicial
+  const { total: totalPacientes, cargando: cargandoPacientes, error: errorPacientes } = usePacientes()
 
   // Médicos: con el hook genérico useApi<T> (maneja cargando, error y cancelación)
   const { data: medicos, cargando: cargandoMedicos, error: errorMedicos } = useApi<MedicoApi[]>('/doctors')
 
-  const citas = useCitasStore(s => s.citas)
-  const cargandoCitas = useCitasStore(s => s.cargando)
-  const errorCitas = useCitasStore(s => s.error)
-  const cargarCitas = useCitasStore(s => s.cargar)
+  const { citas, cargando: cargandoCitas, error: errorCitas } = useCitas()
 
   // Estado de UI local (no es dato de la API)
   const [mantenimiento, setMantenimiento] = useState<boolean>(false)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    cargarPacientes()
-    cargarCitas()
-  }, [cargarPacientes, cargarCitas])
 
   // Contamos por estado sobre las citas del store (una sola petición en vez de dos)
   const citasProgramadas = citas.filter(c => c.estado === 'PROGRAMADA').length
@@ -42,11 +31,12 @@ export default function PaginaDashboard() {
 
   const toggleMantenimiento = () => setMantenimiento(prev => !prev)
 
-  const metricas: Metrica[] = [
-    { id: 'pacientes', titulo: 'Pacientes', valor: mostrar(cargandoPacientes, totalPacientes), descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' },
-    { id: 'medicos', titulo: 'Médicos', valor: mostrar(cargandoMedicos, medicos?.length ?? 0), descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' },
-    { id: 'programadas', titulo: 'Citas Programadas', valor: mostrar(cargandoCitas, citasProgramadas), descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' },
-    { id: 'completadas', titulo: 'Citas Completadas', valor: mostrar(cargandoCitas, citasCompletadas), descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' },
+  // Cada métrica sabe si su dato todavía está cargando
+  const metricas: { metrica: Metrica; cargando: boolean }[] = [
+    { cargando: cargandoPacientes, metrica: { id: 'pacientes', titulo: 'Pacientes', valor: totalPacientes, descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' } },
+    { cargando: cargandoMedicos, metrica: { id: 'medicos', titulo: 'Médicos', valor: medicos?.length ?? 0, descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' } },
+    { cargando: cargandoCitas, metrica: { id: 'programadas', titulo: 'Citas Programadas', valor: citasProgramadas, descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' } },
+    { cargando: cargandoCitas, metrica: { id: 'completadas', titulo: 'Citas Completadas', valor: citasCompletadas, descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' } },
   ]
 
   return (
@@ -83,16 +73,26 @@ export default function PaginaDashboard() {
         </div>
 
         {error && (
-          <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
-            No se pudieron cargar algunas métricas. ¿Está corriendo el backend en el puerto 4000?
-          </p>
+          <div className="mb-4">
+            <AlertaBanner
+              tipo="error"
+              titulo="No se pudieron cargar algunas métricas"
+              mensaje={error}
+            />
+          </div>
         )}
 
-        {/* Tarjetas */}
+        {/* Tarjetas: skeleton mientras carga cada dato */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {metricas.map(m => (
-            <MetricCard key={m.id} metrica={m} />
-          ))}
+          {metricas.map(({ metrica, cargando }) =>
+            cargando ? <SkeletonMetricCard key={metrica.id} /> : <MetricCard key={metrica.id} metrica={metrica} />
+          )}
+        </div>
+
+        <div className="mt-6 text-right">
+          <Link to="/reportes" className="text-sm font-semibold text-emerald-700 hover:text-emerald-600">
+            Ver reportes completos →
+          </Link>
         </div>
       </div>
     </main>

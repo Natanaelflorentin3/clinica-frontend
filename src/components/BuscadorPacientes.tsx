@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react'
+import Spinner from '../shared/components/ui/Spinner'
 
 interface BuscadorPacientesProps {
   value: string
@@ -21,10 +22,9 @@ export default function BuscadorPacientes({ value, onChange, buscando = false }:
       />
       {/* Spinner dentro del input mientras busca */}
       {buscando && (
-        <span
-          aria-label="Buscando"
-          className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-700"
-        />
+        <span className="absolute right-3 top-1/2 flex -translate-y-1/2">
+          <Spinner texto="Buscando" />
+        </span>
       )}
     </div>
   )

@@ -1,12 +1,15 @@
-import { useEffect, useOptimistic, useTransition } from 'react'
+import { useOptimistic, useTransition } from 'react'
 import type { ChangeEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import type { EstadoFinalCita } from '../services/citas'
-import { useCitasStore } from '../stores/citasStore'
-import { useFiltrosStore } from '../stores/filtrosStore'
+import type { EstadoFinalCita } from '../types/dtos'
+import { useCitas } from '../features/citas/hooks/useCitas'
+import { useFiltrosCitas } from '../shared/hooks/useFiltros'
 import { extraerMensajeError } from '../lib/errorHandler'
 import type { CitaConDetalle, EstadoCitaApi } from '../types/api'
+import SkeletonCitaRow from '../shared/components/skeletons/SkeletonCitaRow'
+import AlertaBanner from '../shared/components/ui/AlertaBanner'
+import EstadoVacio from '../shared/components/ui/EstadoVacio'
 
 const estiloEstado: Record<EstadoCitaApi, { texto: string; clases: string }> = {
   PROGRAMADA: { texto: 'Programada', clases: 'bg-sky-100 text-sky-700' },
@@ -29,20 +32,19 @@ const selectClases =
   'rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-200'
 
 export default function PaginaCitas() {
-  // Datos de la API desde el store
-  const citas = useCitasStore(s => s.citas)
-  const cargando = useCitasStore(s => s.cargando)
-  const error = useCitasStore(s => s.error)
-  const cargar = useCitasStore(s => s.cargar)
-  const actualizarEstado = useCitasStore(s => s.actualizarEstado)
+  // Datos de la API + carga inicial: todo dentro del custom hook
+  const { citas, cargando, error, recargar, actualizarEstado } = useCitas()
 
-  // Filtros desde su store
-  const estadoFiltro = useFiltrosStore(s => s.estadoCitaFiltro)
-  const especialidadFiltro = useFiltrosStore(s => s.especialidadFiltro)
-  const setEstadoCita = useFiltrosStore(s => s.setEstadoCita)
-  const setEspecialidad = useFiltrosStore(s => s.setEspecialidad)
+  // Filtros
+  const {
+    estado: estadoFiltro,
+    especialidad: especialidadFiltro,
+    setEstado: setEstadoCita,
+    setEspecialidad,
+  } = useFiltrosCitas()
 
   const [, startTransition] = useTransition()
+  const navigate = useNavigate()
 
   // Estado OPTIMISTA sobre las citas del store.
   // Si la petición falla, el store no cambia y la UI vuelve sola al valor real (se revierte).
@@ -52,9 +54,6 @@ export default function PaginaCitas() {
       actuales.map(c => (c.id === cambio.id ? { ...c, estado: cambio.estado } : c))
   )
 
-  useEffect(() => {
-    cargar()
-  }, [cargar])
 
   const cambiarEstado = (id: number, estado: EstadoFinalCita) => {
     startTransition(async () => {
@@ -81,9 +80,13 @@ export default function PaginaCitas() {
   // ---- Cargando ----
   if (cargando) {
     return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-slate-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-700" />
-        <p>Cargando citas...</p>
+      <main className="mx-auto max-w-6xl p-4 md:p-8">
+        <div className="mb-6 h-9 w-40 animate-pulse rounded bg-slate-200" />
+        <ul className="flex flex-col gap-3" aria-label="Cargando citas">
+          {Array.from({ length: 6 }, (_, i) => (
+            <SkeletonCitaRow key={i} />
+          ))}
+        </ul>
       </main>
     )
   }
@@ -91,17 +94,21 @@ export default function PaginaCitas() {
   // ---- Error ----
   if (error) {
     return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-5xl">⚠️</p>
-        <p className="font-semibold text-slate-800">No se pudieron cargar las citas</p>
-        <p className="text-sm text-slate-500">{error}</p>
-        <button
-          type="button"
-          onClick={() => cargar()}
-          className="mt-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-        >
-          Reintentar
-        </button>
+      <main className="mx-auto max-w-6xl p-4 md:p-8">
+        <AlertaBanner
+          tipo="error"
+          titulo="No se pudieron cargar las citas"
+          mensaje={error}
+          accion={
+            <button
+              type="button"
+              onClick={recargar}
+              className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
+            >
+              Reintentar
+            </button>
+          }
+        />
       </main>
     )
   }
@@ -152,7 +159,25 @@ export default function PaginaCitas() {
       </div>
 
       {citasFiltradas.length === 0 ? (
-        <p className="rounded-xl bg-white p-8 text-center text-slate-500 shadow-sm">No hay citas para mostrar.</p>
+        citasOptimistas.length === 0 ? (
+          <EstadoVacio
+            icono="event_busy"
+            titulo="Todavía no hay citas registradas"
+            accion={{ label: 'Agendar una cita', onClick: () => navigate('/citas/nueva') }}
+          />
+        ) : (
+          <EstadoVacio
+            icono="filter_alt_off"
+            titulo="Ninguna cita coincide con los filtros"
+            accion={{
+              label: 'Ver todas',
+              onClick: () => {
+                setEstadoCita('Todos')
+                setEspecialidad('Todas')
+              },
+            }}
+          />
+        )
       ) : (
         <div className="flex flex-col gap-3">
           {citasFiltradas.map(cita => (

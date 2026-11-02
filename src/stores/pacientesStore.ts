@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import * as pacientesService from '../services/pacientes';
-import type { PacienteDTO } from '../services/pacientes';
+import type { ActualizarPacienteDTO, CrearPacienteDTO } from '../types/dtos';
 import { extraerMensajeError } from '../lib/errorHandler';
 import type { EstadoPaciente, Paciente } from '../types/paciente';
 import type { PacienteApi } from '../types/api';
@@ -25,8 +25,8 @@ interface PacientesState {
   cargando: boolean;
   error: string | null;
   cargar: (query?: string) => Promise<void>;
-  crear: (data: PacienteDTO) => Promise<void>;
-  actualizar: (id: string, data: Partial<PacienteDTO>) => Promise<void>;
+  crear: (data: CrearPacienteDTO) => Promise<void>;
+  actualizar: (id: string, data: ActualizarPacienteDTO) => Promise<void>;
   eliminar: (id: string) => Promise<void>;
   cambiarEstado: (id: string, estado: EstadoPaciente) => void;
 }

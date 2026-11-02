@@ -1,13 +1,30 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import { useAuth } from '../features/auth/hooks/useAuth'
+import ModalConfirmacion from '../shared/components/ui/ModalConfirmacion'
 
 const LINKS = [
   { to: '/', texto: 'Dashboard', icono: 'dashboard' },
   { to: '/pacientes', texto: 'Pacientes', icono: 'personal_injury' },
   { to: '/citas', texto: 'Citas', icono: 'event_note' },
   { to: '/citas/nueva', texto: 'Nueva cita', icono: 'calendar_month' },
+  { to: '/historial', texto: 'Historial', icono: 'history' },
+  { to: '/reportes', texto: 'Reportes', icono: 'bar_chart' },
 ]
 
+// La verificación de sesión ahora la hace <RutaProtegida /> (en App.tsx), no el Layout
 export default function Layout() {
+  const { usuario, logout } = useAuth()
+  const navigate = useNavigate()
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    toast.success('Sesión cerrada')
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 md:flex">
       {/* Sidebar: barra arriba en móvil, fija a la izquierda en desktop */}
@@ -41,9 +58,40 @@ export default function Layout() {
         </nav>
       </aside>
 
-      {/* Acá React Router pone la página de la ruta activa */}
       <div className="flex-1 md:ml-64">
+        {/* Header con los datos de la sesión */}
+        <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3 md:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 font-bold uppercase text-emerald-700">
+              {usuario?.nombre.charAt(0)}
+            </div>
+            <div className="text-right leading-tight">
+              <p className="text-sm font-semibold text-slate-800">{usuario?.nombre}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{usuario?.rol}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirmarSalida(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
+          >
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+            Cerrar sesión
+          </button>
+        </header>
+
+        {/* Acá React Router pone la página de la ruta activa */}
         <Outlet />
+
+        <ModalConfirmacion
+          abierto={confirmarSalida}
+          titulo="Cerrar sesión"
+          mensaje="¿Seguro que querés salir? Vas a tener que volver a iniciar sesión."
+          cargando={false}
+          textoConfirmar="Cerrar sesión"
+          onConfirmar={handleLogout}
+          onCancelar={() => setConfirmarSalida(false)}
+        />
       </div>
     </div>
   )
