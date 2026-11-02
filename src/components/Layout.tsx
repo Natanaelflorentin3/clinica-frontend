@@ -7,6 +7,7 @@ const LINKS = [
   { to: '/pacientes', texto: 'Pacientes', icono: 'personal_injury' },
   { to: '/citas', texto: 'Citas', icono: 'event_note' },
   { to: '/citas/nueva', texto: 'Nueva cita', icono: 'calendar_month' },
+  { to: '/historial', texto: 'Historial', icono: 'history' },
   { to: '/reportes', texto: 'Reportes', icono: 'bar_chart' },
 ]
 
