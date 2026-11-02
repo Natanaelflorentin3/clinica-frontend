@@ -9,6 +9,7 @@ import PaginaReportes from './pages/PaginaReportes'
 import PaginaNotFound from './pages/PaginaNotFound'
 import PaginaLogin from './pages/PaginaLogin'
 import PaginaSinAcceso from './pages/PaginaSinAcceso'
+import PaginaHistorialCitas from './pages/PaginaHistorialCitas'
 import RutaProtegida from './components/RutaProtegida'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/pacientes/:id" element={<PaginaDetallePaciente />} />
           <Route path="/citas" element={<PaginaCitas />} />
           <Route path="/citas/nueva" element={<PaginaNuevaCita />} />
+          <Route path="/historial" element={<PaginaHistorialCitas />} />
           <Route path="/sin-acceso" element={<PaginaSinAcceso />} />
 
           {/* Solo GERENCIA y ADMIN */}
