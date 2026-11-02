@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
-import { useAuthStore } from '../stores/authStore'
+import { useAuth } from '../features/auth/hooks/useAuth'
 
 // No redirige sola: le explica al usuario qué pasó y él decide a dónde ir
 export default function PaginaSinAcceso() {
-  const rol = useAuthStore(s => s.usuario?.rol)
+  const rol = useAuth().usuario?.rol
 
   return (
     <main className="flex min-h-[70vh] flex-col items-center justify-center p-8 text-center">

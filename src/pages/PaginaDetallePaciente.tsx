@@ -1,7 +1,6 @@
-import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { usePacientesStore } from '../stores/pacientesStore'
-import { useCitasStore } from '../stores/citasStore'
+import { usePacientes } from '../features/pacientes/hooks/usePacientes'
+import { useCitas } from '../features/citas/hooks/useCitas'
 import type { EstadoCitaApi } from '../types/api'
 import BadgeEstado from '../components/BadgeEstado'
 import PaginaNotFound from './PaginaNotFound'
@@ -21,26 +20,16 @@ export default function PaginaDetallePaciente() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  // Paciente: del store de pacientes
-  const pacientes = usePacientesStore(s => s.pacientes)
-  const cargandoPacientes = usePacientesStore(s => s.cargando)
-  const cargarPacientes = usePacientesStore(s => s.cargar)
+  // Paciente: el hook carga la lista (sirve también si se entra directo por URL)
+  const { pacientes, cargando: cargandoPacientes } = usePacientes()
 
-  // Historial: del store de citas
-  const citas = useCitasStore(s => s.citas)
-  const citaSeleccionada = useCitasStore(s => s.citaSeleccionada)
-  const cargandoCitas = useCitasStore(s => s.cargando)
-  const cargarPorPaciente = useCitasStore(s => s.cargarPorPaciente)
-  const seleccionar = useCitasStore(s => s.seleccionar)
-
-  // Si se entra directo por URL, la lista de pacientes todavía no está cargada
-  useEffect(() => {
-    if (usePacientesStore.getState().pacientes.length === 0) cargarPacientes()
-  }, [cargarPacientes])
-
-  useEffect(() => {
-    if (id) cargarPorPaciente(Number(id))
-  }, [id, cargarPorPaciente])
+  // Historial: el hook carga solo las citas de este paciente
+  const {
+    citas,
+    citaSeleccionada,
+    cargando: cargandoCitas,
+    seleccionar,
+  } = useCitas({ pacienteId: id ? Number(id) : undefined })
 
   const paciente = pacientes.find(p => p.id === id)
 

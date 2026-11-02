@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { usePacientesStore } from '../stores/pacientesStore'
+import { usePacientes } from '../features/pacientes/hooks/usePacientes'
 import { useApi } from '../hooks/useApi'
-import { useCitasStore } from '../stores/citasStore'
+import { useCitas } from '../features/citas/hooks/useCitas'
 import type { Metrica } from '../types'
 import type { MedicoApi } from '../types/api'
 import MetricCard from '../components/MetricCard'
@@ -12,28 +12,17 @@ import AlertaBanner from '../shared/components/ui/AlertaBanner'
 
 
 export default function PaginaDashboard() {
-  // Datos de la API: desde los stores
-  const totalPacientes = usePacientesStore(s => s.total)
-  const cargandoPacientes = usePacientesStore(s => s.cargando)
-  const errorPacientes = usePacientesStore(s => s.error)
-  const cargarPacientes = usePacientesStore(s => s.cargar)
+  // Datos de la API: cada hook hace su propia carga inicial
+  const { total: totalPacientes, cargando: cargandoPacientes, error: errorPacientes } = usePacientes()
 
   // Médicos: con el hook genérico useApi<T> (maneja cargando, error y cancelación)
   const { data: medicos, cargando: cargandoMedicos, error: errorMedicos } = useApi<MedicoApi[]>('/doctors')
 
-  const citas = useCitasStore(s => s.citas)
-  const cargandoCitas = useCitasStore(s => s.cargando)
-  const errorCitas = useCitasStore(s => s.error)
-  const cargarCitas = useCitasStore(s => s.cargar)
+  const { citas, cargando: cargandoCitas, error: errorCitas } = useCitas()
 
   // Estado de UI local (no es dato de la API)
   const [mantenimiento, setMantenimiento] = useState<boolean>(false)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    cargarPacientes()
-    cargarCitas()
-  }, [cargarPacientes, cargarCitas])
 
   // Contamos por estado sobre las citas del store (una sola petición en vez de dos)
   const citasProgramadas = citas.filter(c => c.estado === 'PROGRAMADA').length

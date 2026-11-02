@@ -8,9 +8,9 @@
 // 4. No es responsive: el sidebar fijo (w-64) y el pl-64 del contenido rompen
 //    el layout en pantallas de celular.
 
-import { useEffect, useState } from 'react'
-import { usePacientesStore } from '../stores/pacientesStore'
-import { useFiltrosStore } from '../stores/filtrosStore'
+import { useState } from 'react'
+import { usePacientes } from '../features/pacientes/hooks/usePacientes'
+import { useFiltrosPacientes } from '../shared/hooks/useFiltros'
 import { useDebounce } from '../hooks/useDebounce'
 import PacienteCard from '../components/PacienteCard'
 import FiltrosPacientes from '../components/FiltrosPacientes'
@@ -20,17 +20,9 @@ import AlertaBanner from '../shared/components/ui/AlertaBanner'
 import EstadoVacio from '../shared/components/ui/EstadoVacio'
 
 export default function PaginaPacientes() {
-  // Datos de la API: vienen del store (un selector por campo)
-  const pacientes = usePacientesStore(s => s.pacientes)
-  const total = usePacientesStore(s => s.total)
-  const cargando = usePacientesStore(s => s.cargando)
-  const error = usePacientesStore(s => s.error)
-  const cargar = usePacientesStore(s => s.cargar)
-
-  // Filtros: viven en su propio store, por eso NO se pierden al cambiar de ruta
-  const query = useFiltrosStore(s => s.queryPacientes)
-  const estadoFiltro = useFiltrosStore(s => s.estadoPacienteFiltro)
-  const resetFiltros = useFiltrosStore(s => s.resetFiltros)
+  // Filtros: viven en su propio store (por eso NO se pierden al cambiar de ruta),
+  // pero la página solo los conoce a través del hook
+  const { query, estado: estadoFiltro, resetFiltros } = useFiltrosPacientes()
 
   // Estado de UI local: mostrar u ocultar el formulario de alta
   const [abrirFormulario, setAbrirFormulario] = useState(false)
@@ -38,10 +30,9 @@ export default function PaginaPacientes() {
   // El valor viene del store, pero al hook no le importa: espera 350ms sin cambios
   const queryDebounced = useDebounce(query, 350)
 
-  // Una sola petición, 350ms después de la última tecla (query vacía = todos los pacientes)
-  useEffect(() => {
-    cargar(queryDebounced)
-  }, [queryDebounced, cargar])
+  // Datos de la API: el hook hace la carga inicial y vuelve a buscar cuando cambia la query
+  // (una sola petición, 350ms después de la última tecla; query vacía = todos los pacientes)
+  const { pacientes, total, cargando, error, recargar } = usePacientes(queryDebounced)
 
   // Mostramos el spinner mientras el usuario escribe o mientras llega la respuesta
   const buscando = cargando || query !== queryDebounced
@@ -99,7 +90,7 @@ export default function PaginaPacientes() {
             accion={
               <button
                 type="button"
-                onClick={() => cargar(queryDebounced)}
+                onClick={recargar}
                 className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
               >
                 Reintentar

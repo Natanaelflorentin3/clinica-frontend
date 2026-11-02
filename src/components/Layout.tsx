@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { useAuthStore } from '../stores/authStore'
+import { useAuth } from '../features/auth/hooks/useAuth'
 import ModalConfirmacion from '../shared/components/ui/ModalConfirmacion'
 
 const LINKS = [
@@ -15,8 +15,7 @@ const LINKS = [
 
 // La verificación de sesión ahora la hace <RutaProtegida /> (en App.tsx), no el Layout
 export default function Layout() {
-  const usuario = useAuthStore(s => s.usuario)
-  const logout = useAuthStore(s => s.logout)
+  const { usuario, logout } = useAuth()
   const navigate = useNavigate()
   const [confirmarSalida, setConfirmarSalida] = useState(false)
 

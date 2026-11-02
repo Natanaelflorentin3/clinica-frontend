@@ -1,10 +1,10 @@
-import { useEffect, useOptimistic, useTransition } from 'react'
+import { useOptimistic, useTransition } from 'react'
 import type { ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import type { EstadoFinalCita } from '../types/dtos'
-import { useCitasStore } from '../stores/citasStore'
-import { useFiltrosStore } from '../stores/filtrosStore'
+import { useCitas } from '../features/citas/hooks/useCitas'
+import { useFiltrosCitas } from '../shared/hooks/useFiltros'
 import { extraerMensajeError } from '../lib/errorHandler'
 import type { CitaConDetalle, EstadoCitaApi } from '../types/api'
 import SkeletonCitaRow from '../shared/components/skeletons/SkeletonCitaRow'
@@ -32,18 +32,16 @@ const selectClases =
   'rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-200'
 
 export default function PaginaCitas() {
-  // Datos de la API desde el store
-  const citas = useCitasStore(s => s.citas)
-  const cargando = useCitasStore(s => s.cargando)
-  const error = useCitasStore(s => s.error)
-  const cargar = useCitasStore(s => s.cargar)
-  const actualizarEstado = useCitasStore(s => s.actualizarEstado)
+  // Datos de la API + carga inicial: todo dentro del custom hook
+  const { citas, cargando, error, recargar, actualizarEstado } = useCitas()
 
-  // Filtros desde su store
-  const estadoFiltro = useFiltrosStore(s => s.estadoCitaFiltro)
-  const especialidadFiltro = useFiltrosStore(s => s.especialidadFiltro)
-  const setEstadoCita = useFiltrosStore(s => s.setEstadoCita)
-  const setEspecialidad = useFiltrosStore(s => s.setEspecialidad)
+  // Filtros
+  const {
+    estado: estadoFiltro,
+    especialidad: especialidadFiltro,
+    setEstado: setEstadoCita,
+    setEspecialidad,
+  } = useFiltrosCitas()
 
   const [, startTransition] = useTransition()
   const navigate = useNavigate()
@@ -56,9 +54,6 @@ export default function PaginaCitas() {
       actuales.map(c => (c.id === cambio.id ? { ...c, estado: cambio.estado } : c))
   )
 
-  useEffect(() => {
-    cargar()
-  }, [cargar])
 
   const cambiarEstado = (id: number, estado: EstadoFinalCita) => {
     startTransition(async () => {
@@ -107,7 +102,7 @@ export default function PaginaCitas() {
           accion={
             <button
               type="button"
-              onClick={() => cargar()}
+              onClick={recargar}
               className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
             >
               Reintentar

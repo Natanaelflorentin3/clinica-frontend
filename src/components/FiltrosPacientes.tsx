@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react'
 import type { FiltroEstado } from '../types/paciente'
-import { useFiltrosStore } from '../stores/filtrosStore'
+import { useFiltrosPacientes } from '../shared/hooks/useFiltros'
 import BuscadorPacientes from './BuscadorPacientes'
 
 const OPCIONES_ESTADO: { valor: FiltroEstado; texto: string }[] = [
@@ -16,11 +16,13 @@ interface FiltrosPacientesProps {
 
 // Lee y escribe los filtros directo en el store (filtrosStore)
 export default function FiltrosPacientes({ buscando }: FiltrosPacientesProps) {
-  const busqueda = useFiltrosStore(s => s.queryPacientes)
-  const estadoFiltro = useFiltrosStore(s => s.estadoPacienteFiltro)
-  const setQueryPacientes = useFiltrosStore(s => s.setQueryPacientes)
-  const setEstadoPaciente = useFiltrosStore(s => s.setEstadoPaciente)
-  const resetFiltros = useFiltrosStore(s => s.resetFiltros)
+  const {
+    query: busqueda,
+    estado: estadoFiltro,
+    setQuery: setQueryPacientes,
+    setEstado: setEstadoPaciente,
+    resetFiltros,
+  } = useFiltrosPacientes()
 
   const handleBusquedaChange = (e: ChangeEvent<HTMLInputElement>) => setQueryPacientes(e.target.value)
   const handleEstadoChange = (e: ChangeEvent<HTMLSelectElement>) =>

@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { useAuthStore } from '../stores/authStore'
+import { useAuth } from '../features/auth/hooks/useAuth'
 import type { RolUsuario } from '../services/auth'
 
 interface RutaProtegidaProps {
@@ -8,8 +8,7 @@ interface RutaProtegidaProps {
 
 // Guard reutilizable: se usa como "ruta layout" que envuelve a un grupo de rutas
 export default function RutaProtegida({ rolesPermitidos }: RutaProtegidaProps) {
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
-  const usuario = useAuthStore(s => s.usuario)
+  const { isAuthenticated, usuario } = useAuth()
 
   // 1. Sin sesión → al login
   if (!isAuthenticated || !usuario) return <Navigate to="/login" replace />

@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import axios from 'axios'
-import * as citasService from '../services/citas'
 import type { FiltroEstadoHistorial } from '../services/citas'
-import { extraerMensajeError } from '../lib/errorHandler'
-import type { CitaConDetalle, EstadoCitaApi, RespuestaPaginada } from '../types/api'
+import type { EstadoCitaApi } from '../types/api'
+import { useHistorialCitas } from '../features/citas/hooks/useHistorialCitas'
 import SkeletonCitaRow from '../shared/components/skeletons/SkeletonCitaRow'
 import AlertaBanner from '../shared/components/ui/AlertaBanner'
 import EstadoVacio from '../shared/components/ui/EstadoVacio'
@@ -25,13 +22,6 @@ const esFiltroValido = (valor: string | null): valor is FiltroEstadoHistorial =>
 const formatearFecha = (fechaIso: string): string =>
   new Date(fechaIso).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
 
-// Resultado de una carga, marcado con la "clave" (página + estado) a la que pertenece
-interface Resultado {
-  clave: string
-  respuesta: RespuestaPaginada<CitaConDetalle> | null
-  error: string | null
-}
-
 export default function PaginaHistorialCitas() {
   // La URL es la fuente de verdad: ?pagina=2&estado=Completada
   const [searchParams, setSearchParams] = useSearchParams()
@@ -40,33 +30,8 @@ export default function PaginaHistorialCitas() {
   const estadoParam = searchParams.get('estado')
   const estado: FiltroEstadoHistorial = esFiltroValido(estadoParam) ? estadoParam : 'Todos'
 
-  const claveActual = `${pagina}|${estado}`
-  const [resultado, setResultado] = useState<Resultado>({ clave: '', respuesta: null, error: null })
-  const [reintentos, setReintentos] = useState(0)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    citasService
-      .getPaginadas({ pagina, estado, limite: LIMITE, signal: controller.signal })
-      .then(res => setResultado({ clave: claveActual, respuesta: res.data, error: null }))
-      .catch((err: unknown) => {
-        // Si la cancelamos nosotros (cambió la página o el filtro), no es un error real
-        if (axios.isCancel(err) || controller.signal.aborted) return
-        setResultado({ clave: claveActual, respuesta: null, error: extraerMensajeError(err) })
-      })
-
-    // Cleanup: cancela la petición anterior → evita mostrar datos de una página vieja
-    return () => controller.abort()
-  }, [pagina, estado, claveActual, reintentos])
-
-  // Está cargando mientras el último resultado no sea de la página/filtro actuales
-  const cargando = resultado.clave !== claveActual
-  const respuesta = cargando ? null : resultado.respuesta
-  const error = cargando ? null : resultado.error
-
-  const totalPaginas = respuesta?.totalPaginas ?? 1
-  const total = respuesta?.total ?? 0
+  // Toda la carga (petición, cancelación, reintento) vive en el custom hook
+  const { citas, total, totalPaginas, cargando, error, recargar } = useHistorialCitas(pagina, estado, LIMITE)
 
   // Cambiar el filtro → vuelve a página 1, en UNA sola llamada
   const handleCambiarEstado = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -114,16 +79,16 @@ export default function PaginaHistorialCitas() {
           accion={
             <button
               type="button"
-              onClick={() => setReintentos(n => n + 1)}
+              onClick={recargar}
               className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
             >
               Reintentar
             </button>
           }
         />
-      ) : respuesta && respuesta.data.length > 0 ? (
+      ) : citas.length > 0 ? (
         <ul className="flex flex-col gap-3">
-          {respuesta.data.map(cita => (
+          {citas.map(cita => (
             <li
               key={cita.id}
               className="flex h-[76px] items-center justify-between gap-4 rounded-xl bg-white px-5 shadow-sm"

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { pacienteSchema } from '../schemas/pacienteSchema'
 import type { PacienteFormData } from '../schemas/pacienteSchema'
 import { fechaHoy } from '../schemas/citaSchema'
-import { usePacientesStore } from '../stores/pacientesStore'
+import { usePacientesAcciones } from '../features/pacientes/hooks/usePacientes'
 import { extraerMensajeError } from '../lib/errorHandler'
 
 // Borde rojo si el campo tiene error
@@ -16,7 +16,7 @@ const clasesCampo = (hayError: boolean): string =>
   }`
 
 export default function FormularioPaciente() {
-  const crear = usePacientesStore(s => s.crear)
+  const { crear } = usePacientesAcciones()
 
   const {
     register,

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { loginSchema } from '../schemas/loginSchema'
 import type { LoginFormData } from '../schemas/loginSchema'
 import { login } from '../services/auth'
-import { useAuthStore } from '../stores/authStore'
+import { useAuth } from '../features/auth/hooks/useAuth'
 import { extraerMensajeError } from '../lib/errorHandler'
 
 // Borde rojo si el campo tiene error
@@ -17,8 +17,7 @@ const clasesCampo = (hayError: boolean): string =>
   }`
 
 export default function PaginaLogin() {
-  const setAuth = useAuthStore(s => s.login)
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const { login: setAuth, isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
   const {
