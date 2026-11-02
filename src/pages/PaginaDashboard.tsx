@@ -7,9 +7,9 @@ import type { Metrica } from '../types'
 import type { MedicoApi } from '../types/api'
 import MetricCard from '../components/MetricCard'
 import StatusBadge from '../components/StatusBadge'
+import SkeletonMetricCard from '../shared/components/skeletons/SkeletonMetricCard'
+import AlertaBanner from '../shared/components/ui/AlertaBanner'
 
-// Mientras se carga mostramos "…"
-const mostrar = (cargando: boolean, valor: number): number | string => (cargando ? '…' : valor)
 
 export default function PaginaDashboard() {
   // Datos de la API: desde los stores
@@ -42,11 +42,12 @@ export default function PaginaDashboard() {
 
   const toggleMantenimiento = () => setMantenimiento(prev => !prev)
 
-  const metricas: Metrica[] = [
-    { id: 'pacientes', titulo: 'Pacientes', valor: mostrar(cargandoPacientes, totalPacientes), descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' },
-    { id: 'medicos', titulo: 'Médicos', valor: mostrar(cargandoMedicos, medicos?.length ?? 0), descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' },
-    { id: 'programadas', titulo: 'Citas Programadas', valor: mostrar(cargandoCitas, citasProgramadas), descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' },
-    { id: 'completadas', titulo: 'Citas Completadas', valor: mostrar(cargandoCitas, citasCompletadas), descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' },
+  // Cada métrica sabe si su dato todavía está cargando
+  const metricas: { metrica: Metrica; cargando: boolean }[] = [
+    { cargando: cargandoPacientes, metrica: { id: 'pacientes', titulo: 'Pacientes', valor: totalPacientes, descripcion: 'Registrados en el sistema', tendencia: 'positiva', icono: '🧑‍⚕️' } },
+    { cargando: cargandoMedicos, metrica: { id: 'medicos', titulo: 'Médicos', valor: medicos?.length ?? 0, descripcion: 'Staff de la clínica', tendencia: 'neutra', icono: '🩺' } },
+    { cargando: cargandoCitas, metrica: { id: 'programadas', titulo: 'Citas Programadas', valor: citasProgramadas, descripcion: 'Pendientes de atención', tendencia: 'neutra', icono: '📅' } },
+    { cargando: cargandoCitas, metrica: { id: 'completadas', titulo: 'Citas Completadas', valor: citasCompletadas, descripcion: 'Consultas finalizadas', tendencia: 'positiva', icono: '✅' } },
   ]
 
   return (
@@ -83,16 +84,20 @@ export default function PaginaDashboard() {
         </div>
 
         {error && (
-          <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
-            No se pudieron cargar algunas métricas. ¿Está corriendo el backend en el puerto 4000?
-          </p>
+          <div className="mb-4">
+            <AlertaBanner
+              tipo="error"
+              titulo="No se pudieron cargar algunas métricas"
+              mensaje={error}
+            />
+          </div>
         )}
 
-        {/* Tarjetas */}
+        {/* Tarjetas: skeleton mientras carga cada dato */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {metricas.map(m => (
-            <MetricCard key={m.id} metrica={m} />
-          ))}
+          {metricas.map(({ metrica, cargando }) =>
+            cargando ? <SkeletonMetricCard key={metrica.id} /> : <MetricCard key={metrica.id} metrica={metrica} />
+          )}
         </div>
 
         <div className="mt-6 text-right">
