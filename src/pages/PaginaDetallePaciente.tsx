@@ -5,6 +5,8 @@ import { useCitasStore } from '../stores/citasStore'
 import type { EstadoCitaApi } from '../types/api'
 import BadgeEstado from '../components/BadgeEstado'
 import PaginaNotFound from './PaginaNotFound'
+import Spinner from '../shared/components/ui/Spinner'
+import SkeletonCitaRow from '../shared/components/skeletons/SkeletonCitaRow'
 
 const estiloEstado: Record<EstadoCitaApi, string> = {
   PROGRAMADA: 'bg-sky-100 text-sky-700',
@@ -43,12 +45,7 @@ export default function PaginaDetallePaciente() {
   const paciente = pacientes.find(p => p.id === id)
 
   if (cargandoPacientes || (!paciente && pacientes.length === 0)) {
-    return (
-      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-slate-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-700" />
-        <p>Cargando paciente...</p>
-      </main>
-    )
+    return <Spinner fullscreen texto="Cargando paciente..." />
   }
 
   if (!paciente) return <PaginaNotFound />
@@ -98,7 +95,11 @@ export default function PaginaDetallePaciente() {
         <h2 className="mb-4 text-lg font-semibold text-slate-800">Historial de citas</h2>
 
         {cargandoCitas ? (
-          <p className="text-sm text-slate-500">Cargando citas...</p>
+          <ul className="flex flex-col gap-2" aria-label="Cargando citas">
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonCitaRow key={i} />
+            ))}
+          </ul>
         ) : citas.length === 0 ? (
           <p className="text-sm text-slate-500">Este paciente todavía no tiene citas.</p>
         ) : (

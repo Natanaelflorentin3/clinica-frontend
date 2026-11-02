@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import * as citasService from '../services/citas'
 import type { FiltroEstadoHistorial } from '../services/citas'
 import { extraerMensajeError } from '../lib/errorHandler'
 import type { CitaConDetalle, EstadoCitaApi, RespuestaPaginada } from '../types/api'
+import SkeletonCitaRow from '../shared/components/skeletons/SkeletonCitaRow'
+import AlertaBanner from '../shared/components/ui/AlertaBanner'
+import EstadoVacio from '../shared/components/ui/EstadoVacio'
 
 const LIMITE = 10
 const ESTADOS: FiltroEstadoHistorial[] = ['Todos', 'Programada', 'Completada', 'Cancelada']
@@ -29,22 +32,10 @@ interface Resultado {
   error: string | null
 }
 
-// Placeholder del mismo alto que una fila real (evita el "salto" de layout)
-function FilaSkeleton() {
-  return (
-    <li className="flex h-[76px] animate-pulse items-center justify-between gap-4 rounded-xl bg-white px-5 shadow-sm">
-      <div className="flex-1 space-y-2">
-        <div className="h-4 w-1/3 rounded bg-slate-200" />
-        <div className="h-3 w-1/2 rounded bg-slate-100" />
-      </div>
-      <div className="h-6 w-24 rounded-full bg-slate-200" />
-    </li>
-  )
-}
-
 export default function PaginaHistorialCitas() {
   // La URL es la fuente de verdad: ?pagina=2&estado=Completada
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const pagina = Math.max(1, Number(searchParams.get('pagina')) || 1)
   const estadoParam = searchParams.get('estado')
   const estado: FiltroEstadoHistorial = esFiltroValido(estadoParam) ? estadoParam : 'Todos'
@@ -112,20 +103,24 @@ export default function PaginaHistorialCitas() {
       {cargando ? (
         <ul className="flex flex-col gap-3" aria-label="Cargando citas">
           {Array.from({ length: LIMITE }, (_, i) => (
-            <FilaSkeleton key={i} />
+            <SkeletonCitaRow key={i} />
           ))}
         </ul>
       ) : error ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-rose-600">{error}</p>
-          <button
-            type="button"
-            onClick={() => setReintentos(n => n + 1)}
-            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-          >
-            Reintentar
-          </button>
-        </div>
+        <AlertaBanner
+          tipo="error"
+          titulo="No se pudo cargar el historial"
+          mensaje={error}
+          accion={
+            <button
+              type="button"
+              onClick={() => setReintentos(n => n + 1)}
+              className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
+            >
+              Reintentar
+            </button>
+          }
+        />
       ) : respuesta && respuesta.data.length > 0 ? (
         <ul className="flex flex-col gap-3">
           {respuesta.data.map(cita => (
@@ -147,8 +142,19 @@ export default function PaginaHistorialCitas() {
             </li>
           ))}
         </ul>
+      ) : estado === 'Todos' ? (
+        <EstadoVacio
+          icono="event_busy"
+          titulo="Todavía no hay citas registradas"
+          descripcion="Las citas que agendes van a aparecer acá."
+          accion={{ label: 'Agendar una cita', onClick: () => navigate('/citas/nueva') }}
+        />
       ) : (
-        <p className="rounded-xl bg-white p-8 text-center text-slate-500 shadow-sm">No hay citas para mostrar.</p>
+        <EstadoVacio
+          icono="filter_alt_off"
+          titulo={`No hay citas en estado “${estado}”`}
+          accion={{ label: 'Ver todas', onClick: () => setSearchParams({ pagina: '1', estado: 'Todos' }) }}
+        />
       )}
 
       {/* Paginación */}

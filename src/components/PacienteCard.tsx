@@ -6,7 +6,7 @@ import type { EstadoPaciente, Paciente } from '../types/paciente'
 import { usePacientesStore } from '../stores/pacientesStore'
 import { extraerMensajeError } from '../lib/errorHandler'
 import BadgeEstado from './BadgeEstado'
-import ModalConfirmacion from './ModalConfirmacion'
+import ModalConfirmacion from '../shared/components/ui/ModalConfirmacion'
 
 interface PacienteCardProps {
   paciente: Paciente

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../stores/authStore'
+import ModalConfirmacion from '../shared/components/ui/ModalConfirmacion'
 
 const LINKS = [
   { to: '/', texto: 'Dashboard', icono: 'dashboard' },
@@ -16,6 +18,7 @@ export default function Layout() {
   const usuario = useAuthStore(s => s.usuario)
   const logout = useAuthStore(s => s.logout)
   const navigate = useNavigate()
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -70,7 +73,7 @@ export default function Layout() {
           </div>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setConfirmarSalida(true)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
@@ -80,6 +83,16 @@ export default function Layout() {
 
         {/* Acá React Router pone la página de la ruta activa */}
         <Outlet />
+
+        <ModalConfirmacion
+          abierto={confirmarSalida}
+          titulo="Cerrar sesión"
+          mensaje="¿Seguro que querés salir? Vas a tener que volver a iniciar sesión."
+          cargando={false}
+          textoConfirmar="Cerrar sesión"
+          onConfirmar={handleLogout}
+          onCancelar={() => setConfirmarSalida(false)}
+        />
       </div>
     </div>
   )
